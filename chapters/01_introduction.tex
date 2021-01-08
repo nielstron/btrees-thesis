@@ -3,88 +3,155 @@
 
 \chapter{Introduction}\label{chapter:introduction}
 
-\section{Section}
-Citation test~\parencite{latex}.
+The goal of this thesis is to obtain an implementation of B-Trees in the Isabelle/HOL Framework.
+The approach is to first design a functional, abstract implementation.
+This implementation is the shown to implement a Set-interface,
+correctly implementing retrieval, insertion and deletion operations.
+In a last step, an imperative implementation is derived that
+refines the functional variant.
+Thus the proof of correctness for the imperative implementation
+is reduced to a proof of equivalence between the output of the
+functional and the imperative implementation.
+Desirable properties regarding low runtime and high storage usage
+are preserved by the obtained implementation.
 
-\subsection{Subsection}
+\section{The Isabelle Proof Assistant}
 
-See~\autoref{tab:sample}, \autoref{fig:sample-drawing}, \autoref{fig:sample-plot}, \autoref{fig:sample-listing}.
+The Isabelle/HOL tool is an interactive theorem prover.
+The user outlines a proof and tells the system which proof methods to apply to
+resolve each step.
+% TODO more info
 
-\begin{table}[htpb]
-  \caption[Example table]{An example for a simple table.}\label{tab:sample}
-  \centering
-  \begin{tabular}{l l l l}
-    \toprule
-      A & B & C & D \\
-    \midrule
-      1 & 2 & 1 & 2 \\
-      2 & 3 & 2 & 3 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+\section{The B-Tree Data Structure}
 
-\begin{figure}[htpb]
-  \centering
-  % This should probably go into a file in figures/
-  \begin{tikzpicture}[node distance=3cm]
-    \node (R0) {$R_1$};
-    \node (R1) [right of=R0] {$R_2$};
-    \node (R2) [below of=R1] {$R_4$};
-    \node (R3) [below of=R0] {$R_3$};
-    \node (R4) [right of=R1] {$R_5$};
+B-Trees were first proposed by Bayer et al. in \parencite{DBLP:journals/acta/BayerM72},
+as a data-structure to efficiently store and retrieve indices stored on storage devices
+with slow memory access.
+In general, B-Trees are hence a special kind of balanced search-trees.
+They are different from binary trees in that the number of subtrees is not constant 2
+but is defined by the \textit{order} \texttt{k} of the tree.
+Every node contains a list of \texttt{keys} or \texttt{separators}, index elements, and \texttt{subtrees},
+that refer to further B-Trees.
+The length of this list is bounded by \texttt{k}.
+The separators and subtrees are considered interleaved within a node,
+such that we can speak of a "subtree left of a separator" and a "subtree right of a separator",
+where for a separator at index \texttt{i} we mean the subtree in the respective
+subtree list at index \texttt{i} and \texttt{i+1} respectively.
+Note that this already implies that the list of subtrees is one
+longer than the list of separators - we refer to the last subtree as the \textit{last} or
+\textit{dangling} subtree.
 
-    \path[every node]
-      (R0) edge (R1)
-      (R0) edge (R3)
-      (R3) edge (R2)
-      (R2) edge (R1)
-      (R1) edge (R4);
-  \end{tikzpicture}
-  \caption[Example drawing]{An example for a simple drawing.}\label{fig:sample-drawing}
-\end{figure}
+\subsection{Common Definitions}
 
-\begin{figure}[htpb]
-  \centering
+In \parencite{DBLP:journals/acta/BayerM72},
+the B-Tree data-structure are defined by three properties: \textit{balancedness}, \textit{order} and \textit{sortedness}.
 
-  \pgfplotstableset{col sep=&, row sep=\\}
-  % This should probably go into a file in data/
-  \pgfplotstableread{
-    a & b    \\
-    1 & 1000 \\
-    2 & 1500 \\
-    3 & 1600 \\
-  }\exampleA
-  \pgfplotstableread{
-    a & b    \\
-    1 & 1200 \\
-    2 & 800 \\
-    3 & 1400 \\
-  }\exampleB
-  % This should probably go into a file in figures/
-  \begin{tikzpicture}
-    \begin{axis}[
-        ymin=0,
-        legend style={legend pos=south east},
-        grid,
-        thick,
-        ylabel=Y,
-        xlabel=X
-      ]
-      \addplot table[x=a, y=b]{\exampleA};
-      \addlegendentry{Example A};
-      \addplot table[x=a, y=b]{\exampleB};
-      \addlegendentry{Example B};
-    \end{axis}
-  \end{tikzpicture}
-  \caption[Example plot]{An example for a simple plot.}\label{fig:sample-plot}
-\end{figure}
+\textit{Balancedness} requires that "each path from the root to any leaf has the same length \texttt{h}",
+in other words that the height of all trees in one level of the tree must be equal.
 
-\begin{figure}[htpb]
-  \centering
-  \begin{tabular}{c}
-  \begin{lstlisting}[language=SQL]
-    SELECT * FROM tbl WHERE tbl.str = "str"
-  \end{lstlisting}
-  \end{tabular}
-  \caption[Example listing]{An example for a source code listing.}\label{fig:sample-listing}
-\end{figure}
+Further the indices must be \textit{sorted} within the tree which means that all indices stored
+in the subtree left of a separator are smaller than the value of the separator
+and all indices on the right are greater.
+
+As pointed out in \parencite{DBLP:books/daglib/0095349_mod},
+the property of \textit{order} is defined differently in the literature.
+For our purposes however, we focus on the original definition by Bayer et al.
+A B-Tree is of order \textit{k}, if each internal node has at least \textit{k+1}
+subtrees and at most \textit{2*k+1}.
+The alternative of defining the nodes to have between $\lceil \frac{k}{2} \rceil$
+and $k$ children (as proposed in \parencite{DBLP:books/lib/Knuth98a}),
+involves cumbersome \textit{real} arithmetic that unnecessarily complicates
+mechanized proofs.
+Sticking to this definition is further supported by the fact that nodes are supposed
+to fill memory pages which are usually of even size (usually some power of 2).
+An even number of separators and trees plus one dangling last right tree maximizes
+the usage of such a page.
+
+The same ambiguity exists for the term \textit{Leaf} which we will define consistently with Knuth's definition \parencite{DBLP:books/lib/Knuth98a}
+to be an empty node, carrying no information.
+This is closest to the usual approach in functional programming.
+The lowest level of nodes hence contains a list of separators and
+list of pointers to leaves.
+
+% TODO insert image of valid B-Tree
+
+\subsection{Set operations}
+
+With the definition of B-Trees come a number of operations that allow for set-like operations
+on the trees - retrieval, insertion and deletion.
+Naturally these operations are defined recursively on the nodes of the tree.
+Since each node contains a non-trivial number of elements,
+a function to navigate to the correct subtree is central to all operations.
+We call this function \textit{split}-function,
+determining the position in the list of separators and subtrees at which
+either the separator is the desired value or the range of the left subtree
+contains the desired value.
+This approach is similar to the one found in \parencite{DBLP:conf/popl/MalechaMSW10}.
+Usually this is integrated into the set-operation
+by a linear search that is promised to be replaced by a more efficient binary search
+in the actual implementation \parencite{DBLP:books/daglib/0023376,DBLP:journals/acta/BayerM72}
+or left in the final code since the implementation does not allow for a more efficient searching function \parencite{DBLP:journals/sosym/ErnstSR15}
+
+
+\subsection{Desirable Properties}
+
+Due to the potentially large branching factor, combined with the balancing,
+the amount of required memory accesses when accessing data is reduced drastically.
+This is due to the fact that the overall number of memory accesses is bounded by the depth
+of the tree, which again is logarithmic in the number of indices -
+where the base of the logarithm is closely proportional to the order \textit{k} of the tree.
+
+Further, the storage usage of B-Trees is at a minimum of $50\%$ at all times,
+where the average usage is usually higher. \parencite{DBLP:journals/acta/BayerM72}
+
+These properties are key to the widespread popularity of B-Trees and are
+hence preserved in the given implementation.
+
+
+\subsection{Applications}
+
+B-Trees are used in almost all modern databases for storing key-value pairs.
+
+
+\chapter{B-Trees in Isabelle}
+
+\section{Definition}
+
+Definition used for this implementation.
+(esp. order)
+note that k refers to keys+subtrees rather than only keys/subtrees (false! we have k pairs)
+Note equivalence for sortedness properties
+
+\section{Properties}
+
+Height etc.
+
+\section{Functional Implementation}
+
+Description of the implementation of the set interface.
+
+\section{Imperative Implementation}
+
+\subsection{The Imperative Refinement Framework}
+
+Short Description of Peters Refinement framework regarding our implementation
+
+\subsection{Important low-level data structures}
+
+Note the existence of arrays and blit.
+Note further the introduction of partially filled arrays
+and the introduction of sblit.
+
+\subsection{The split function}
+
+Note the choice of a while-loop for efficiency
+The split function can be implemented linearly (easier, proof of concept)
+but due to abstraction of functionality may use binary split as well.
+
+\subsection{Insertion}
+
+Description of applying the refinement framework to the insert function
+
+\chapter{Conclusions}
+
+\dots

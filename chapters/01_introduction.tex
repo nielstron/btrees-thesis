@@ -115,7 +115,7 @@ The work therefore begins with a functional specification of B-Trees.
 Inspired by the design in \parencite{DBLP:conf/popl/MalechaMSW10}, the B-Tree data-structure is defined as follows:
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
-    datatype 'a btree = Leaf | Node "( 'a btree * 'a ) list" "'a btree"
+datatype 'a btree = Leaf | Node "( 'a btree * 'a ) list" "'a btree"
 \end{lstlisting}
 
 By interleaving the subtrees and separators, expression of invariants
@@ -127,6 +127,17 @@ to the subtree on the left, as this subtree is in the same tuple.
 Operations that require the subtree on the right can always be expressed as a special
 operation on the last tree.
 
+The balancedness of a B-Tree is defined in a straightforward fashion
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+fun bal:: "'a btree $\Rightarrow$ bool" where
+    "bal Leaf = True" |
+    "bal (Node ts t) = (
+      ($\forall$sub $\in$ set (subtrees ts). height t = height sub) $\wedge$
+      ($\forall$sub $\in$ set (subtrees ts). bal sub) $\wedge$
+      bal t
+    )"
+\end{lstlisting}
+
 We define the sortedness of a B-Tree based on the \textit{inorder} of the tree,
 the concatenation of all elements of the tree in in-order traversal.
 Since the tree does no longer have a constant maximum number of elements (as opposed to
@@ -134,12 +145,50 @@ e.g. 2-3-4-Trees in \parencite{DBLP:conf/itp/Nipkow16}),
 a folding operation is employed to express the resulting string. 
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
-    fun inorder :: "'a btree $\Rightarrow$ 'a list" where
+fun inorder :: "'a btree $\Rightarrow$ 'a list" where
     "inorder Leaf = []" |
-    "inorder (Node ts t) = (foldr (@) (map ($\lambda$ (sub, sep). inorder sub @ [sep]) ts) []) @ inorder t"
+    "inorder (Node ts t) = (concat (map ($\lambda$ (sub, sep). inorder sub @ [sep]) ts)) @ inorder t"
 \end{lstlisting}
 
 That way we can express sortedness of the tree as a simple \texttt{sorted\_less (inorder t)}.
+This definition is very compact.
+However when reasoning about changes in the list,
+a more modular definition might be useful.
+Therefore another definition of sortedness is introduced, based directly
+on the function \texttt{sorted\_wrt}:
+
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+fun sub_sep_sm where
+    "sub_sep_sm (sub_l, sep_l) (sub_r, sep_r) = (
+      (sep_l < sep_r) $\wedge$
+      ($\forall$x $\in$ set_btree sub_r. sep_l < x)
+    )"
+  
+fun sub_sep_cons where
+    "sub_sep_cons (sub, sep) = (
+      $\forall$x $\in$ set_btree sub. x < sep
+    )"
+
+fun sorted_btree where
+    "sorted_btree Leaf = True" |
+    "sorted_btree (Node ts t) = (
+        sorted_wrt sub_sep_sm ts $\wedge$
+        ($\forall$x $\in$ set ts. sub_sep_cons x) $\wedge$
+        ($\forall$sep $\in$ set (separators ts). $\forall$y $\in$ set_btree t. sep < y) $\wedge$
+        ($\forall$sub $\in$ set (subtrees ts). sorted_btree sub) $\wedge$
+        sorted_btree t
+    )"
+\end{lstlisting}
+
+With this function, sortedness of a string can be shown in a modular fashion,
+by showing sortedness of the list elements and the last tree in separate steps.
+Since the equality of the two definition is not plain obvious,
+it is shown in the Isabelle document separately.
+
+\begin{lemma}
+    \texttt{sorted\_less (inorder t) = sorted\_btree t}
+\end{lemma}
+
 
 \section{Properties}
 

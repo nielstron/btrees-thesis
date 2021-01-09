@@ -30,6 +30,9 @@ with slow memory access.
 In general, B-Trees are hence a special kind of balanced search-trees.
 They are different from binary trees in that the number of subtrees is not constant 2
 but is defined by the \textit{order} \texttt{k} of the tree.
+
+\subsection{Definitions}
+
 Every node contains a list of \texttt{keys} or \texttt{separators}, index elements, and \texttt{subtrees},
 that refer to further B-Trees.
 The length of this list is bounded by \texttt{k}.
@@ -40,11 +43,9 @@ subtree list at index \texttt{i} and \texttt{i+1} respectively.
 Note that this already implies that the list of subtrees is one
 longer than the list of separators - we refer to the last subtree as the \textit{last} or
 \textit{dangling} subtree.
-
-\subsection{Common Definitions}
-
 In \parencite{DBLP:journals/acta/BayerM72},
-the B-Tree data-structure are defined by three properties: \textit{balancedness}, \textit{order} and \textit{sortedness}.
+a B-Tree with above structure must fulfill the three properties
+\textit{balancedness}, \textit{order} and \textit{sortedness}.
 
 \textit{Balancedness} requires that "each path from the root to any leaf has the same length \texttt{h}",
 in other words that the height of all trees in one level of the tree must be equal.
@@ -53,9 +54,11 @@ Further the indices must be \textit{sorted} within the tree which means that all
 in the subtree left of a separator are smaller than the value of the separator
 and all indices on the right are greater.
 
-As pointed out in \parencite{DBLP:books/daglib/0095349_mod},
-the property of \textit{order} is defined differently in the literature.
-For our purposes however, we focus on the original definition by Bayer et al.
+In general terms, the property of \textit{order} ensures a certain minimum and maximum
+number of subtrees for each node.
+However, as pointed out in \parencite{DBLP:books/daglib/0095349_mod},
+the property is defined differently in the literature.
+For the purpose of this work, the original definition by Bayer et al. was chosen as most suitable.
 A B-Tree is of order \textit{k}, if each internal node has at least \textit{k+1}
 subtrees and at most \textit{2*k+1}.
 The alternative of defining the nodes to have between $\lceil \frac{k}{2} \rceil$
@@ -75,24 +78,6 @@ list of pointers to leaves.
 
 % TODO insert image of valid B-Tree
 
-\subsection{Set operations}
-
-With the definition of B-Trees come a number of operations that allow for set-like operations
-on the trees - retrieval, insertion and deletion.
-Naturally these operations are defined recursively on the nodes of the tree.
-Since each node contains a non-trivial number of elements,
-a function to navigate to the correct subtree is central to all operations.
-We call this function \textit{split}-function,
-determining the position in the list of separators and subtrees at which
-either the separator is the desired value or the range of the left subtree
-contains the desired value.
-This approach is similar to the one found in \parencite{DBLP:conf/popl/MalechaMSW10}.
-Usually this is integrated into the set-operation
-by a linear search that is promised to be replaced by a more efficient binary search
-in the actual implementation \parencite{DBLP:books/daglib/0023376,DBLP:journals/acta/BayerM72}
-or left in the final code since the implementation does not allow for a more efficient searching function \parencite{DBLP:journals/sosym/ErnstSR15}
-
-
 \subsection{Desirable Properties}
 
 Due to the potentially large branching factor, combined with the balancing,
@@ -103,6 +88,8 @@ where the base of the logarithm is closely proportional to the order \textit{k} 
 
 Further, the storage usage of B-Trees is at a minimum of $50\%$ at all times,
 where the average usage is usually higher. \parencite{DBLP:journals/acta/BayerM72}
+This is due to the fact that every node reserves the storage of $2*k$ keys and separators
+and by definition always contains at least $k$ elements.
 
 These properties are key to the widespread popularity of B-Trees and are
 hence preserved in the given implementation.
@@ -112,35 +99,89 @@ hence preserved in the given implementation.
 
 B-Trees are used in almost all modern databases for storing key-value pairs.
 
+\chapter{Functional B-Trees in Isabelle}
 
-\chapter{B-Trees in Isabelle}
+Functional specifications of data structures tend to have properties that
+are easier to prove than for corresponding imperative implementations
+mostly due to the fact that many details of implementation can be abstracted away.
+The work therefore begins with a functional specification of B-Trees.
 
-\section{Definition}
+\section{Basic Definitions}
+%Definition used for this implementation.
+%(esp. order)
+%note that k refers to keys+subtrees rather than only keys/subtrees (false! we have k pairs)
+%Note equivalence for sortedness properties
 
-Definition used for this implementation.
-(esp. order)
-note that k refers to keys+subtrees rather than only keys/subtrees (false! we have k pairs)
-Note equivalence for sortedness properties
+Inspired by the design in \parencite{DBLP:conf/popl/MalechaMSW10}, the B-Tree data-structure is defined as follows:
+
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+    datatype 'a btree = Leaf | Node "( 'a btree * 'a ) list" "'a btree"
+\end{lstlisting}
+
+By interleaving the subtrees and separators, expression of invariants
+on the tree is possible without the explicit use of indices into lists.
+Since the list of trees is exactly one longer than the list of keys,
+the last tree is added to the node in a special position.
+The construction leads to the fact that it is easiest to relate any separator
+to the subtree on the left, as this subtree is in the same tuple.
+Operations that require the subtree on the right can always be expressed as a special
+operation on the last tree.
+
+We define the sortedness of a B-Tree based on the \textit{inorder} of the tree,
+the concatenation of all elements of the tree in in-order traversal.
+Since the tree does no longer have a constant maximum number of elements (as opposed to
+e.g. 2-3-4-Trees in \parencite{DBLP:conf/itp/Nipkow16}),
+a folding operation is employed to express the resulting string. 
+
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+    fun inorder :: "'a btree $\Rightarrow$ 'a list" where
+    "inorder Leaf = []" |
+    "inorder (Node ts t) = (foldr (@) (map ($\lambda$ (sub, sep). inorder sub @ [sep]) ts) []) @ inorder t"
+\end{lstlisting}
+
+That way we can express sortedness of the tree as a simple \texttt{sorted\_less (inorder t)}.
 
 \section{Properties}
 
 Height etc.
 
-\section{Functional Implementation}
 
-Description of the implementation of the set interface.
+\section{Set operations}
+% Description of the implementation of the set interface.
 
-\section{Imperative Implementation}
+With the definition of B-Trees come a number of operations that allow for set-like operations
+on the trees - retrieval, insertion and deletion.
+Naturally these operations are defined recursively on the nodes of the tree.
+Since each node contains a non-trivial number of elements,
+a function to navigate to the correct subtree is central to all operations.
+We call this function \textit{split}-function,
+determining the position in the list of separators and subtrees at which
+either the separator is equal to the desired value or the range of the left subtree
+contains the desired value.
+This approach is similar to the one found in the work of Malecha and Fielding \parencite{DBLP:conf/popl/MalechaMSW10,Fielding80}.\footnote{
+    In Fieldings approach the corresponding function is called \textit{index}.
+    Malecha calls it \textit{findSubtree}.
+}
+Usually however, it is integrated into the set-operation
+by a linear search that is promised to be replaced by a more efficient binary search
+in the actual implementation \parencite{DBLP:books/daglib/0023376,DBLP:journals/acta/BayerM72}
+or left in the final code \parencite{DBLP:journals/sosym/ErnstSR15}
 
-\subsection{The Imperative Refinement Framework}
+
+
+\chapter{Imperative B-Trees in Isabelle}
+
+\section{The Imperative Refinement Framework}
 
 Short Description of Peters Refinement framework regarding our implementation
 
-\subsection{Important low-level data structures}
+\section{Important low-level data structures}
 
 Note the existence of arrays and blit.
 Note further the introduction of partially filled arrays
 and the introduction of sblit.
+
+\section{Set-Operations}
 
 \subsection{The split function}
 

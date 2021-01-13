@@ -32,6 +32,7 @@ They are different from binary trees in that the number of subtrees is not const
 but is defined by the \textit{order} \texttt{k} of the tree.
 
 \subsection{Definitions}
+\label{sec:data_structure_defs}
 
 Every node contains a list of \texttt{keys} or \texttt{separators}, index elements, and \texttt{subtrees},
 that refer to further B-Trees.
@@ -127,15 +128,61 @@ to the subtree on the left, as this subtree is in the same tuple.
 Operations that require the subtree on the right can always be expressed as a special
 operation on the last tree.
 
-The balancedness of a B-Tree is defined in a straightforward fashion
+The balancedness of a B-Tree is defined in a straightforward fashion, making use
+of an intuitively defined height\footnote{
+    Note that the actual implementation of height is slightly different,
+    however this is of no importance in any proofs but rather notationally convenient.
+}.
+There is a choice here, namely whether to fix the balancedness of a tree
+on some arbitrary number or on a known value.
+Since we know the last tree in the node exists and further
+know that all in the node have the same height as that tree,
+we simply choose the height of the last tree as an anchor point.
+
 \begin{lstlisting}[mathescape=true, language=Isabelle]
-fun bal:: "'a btree $\Rightarrow$ bool" where
+
+fun height :: "'a btree $\Rightarrow$ nat" where
+  "height Leaf = 0" |
+  "height (Node ts t) = Suc (fold max (map height (subtrees ts)) (height t))"
+
+fun bal :: "'a btree $\Rightarrow$ bool" where
     "bal Leaf = True" |
     "bal (Node ts t) = (
       ($\forall$sub $\in$ set (subtrees ts). height t = height sub) $\wedge$
       ($\forall$sub $\in$ set (subtrees ts). bal sub) $\wedge$
       bal t
     )"
+\end{lstlisting}
+
+Further the \textit{order} of the trees needs to be formally defined.
+As discussed in \autoref{sec:data_structure_defs}, the most useful choice here is
+to allow for at least $k$ and at most $2*k+1$ subtrees.
+Since the last subtree is fixed, this means that the length of list of keys and children
+itself has to be between $k$ and $2*k$.
+Note that we also need a special property for the root of the tree,
+which has between one and $2*k$ elements.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+
+fun order :: "nat $\Rightarrow$ 'a btree $\Rightarrow$ bool" where
+    "order k Leaf = True" |
+    "order k (Node ts t) = (
+    (length ts $\ge$ k)  $\wedge$
+    (length ts $\le$ 2*k) $\wedge$
+    ($\forall$sub $\in$ set (subtrees ts). order k sub) $\wedge$
+    order k t
+  )"
+
+fun root_order where
+  "root_order k Leaf = True" |
+  "root_order k (Node ts t) = (
+  (length ts $>$ 0) $\wedge$
+  (length ts $\le$ 2*k) $\wedge$
+  ($\forall$s $\in$ set (subtrees ts). order k s) $\wedge$
+   order k t
+)"
+
+  
 \end{lstlisting}
 
 We define the sortedness of a B-Tree based on the \textit{inorder} of the tree,
@@ -148,52 +195,49 @@ a folding operation is employed to express the resulting string.
 fun inorder :: "'a btree $\Rightarrow$ 'a list" where
     "inorder Leaf = []" |
     "inorder (Node ts t) = (concat (map ($\lambda$ (sub, sep). inorder sub @ [sep]) ts)) @ inorder t"
+
+abbreviation "inorder_pair  $\equiv$ $\lambda$(sub,sep). inorder sub @ [sep]"
+abbreviation "inorder_list ts $\equiv$ concat (map ($\lambda$ a. inorder_pair a) ts)"
 \end{lstlisting}
 
 That way we can express sortedness of the tree as a simple \texttt{sorted\_less (inorder t)}.
-This definition is very compact.
-However when reasoning about changes in the list,
-a more modular definition might be useful.
-Therefore another definition of sortedness is introduced, based directly
-on the function \texttt{sorted\_wrt}:
-
-\begin{lstlisting}[mathescape=true, language=Isabelle]
-fun sub_sep_sm where
-    "sub_sep_sm (sub_l, sep_l) (sub_r, sep_r) = (
-      (sep_l < sep_r) $\wedge$
-      ($\forall$x $\in$ set_btree sub_r. sep_l < x)
-    )"
-  
-fun sub_sep_cons where
-    "sub_sep_cons (sub, sep) = (
-      $\forall$x $\in$ set_btree sub. x < sep
-    )"
-
-fun sorted_btree where
-    "sorted_btree Leaf = True" |
-    "sorted_btree (Node ts t) = (
-        sorted_wrt sub_sep_sm ts $\wedge$
-        ($\forall$x $\in$ set ts. sub_sep_cons x) $\wedge$
-        ($\forall$sep $\in$ set (separators ts). $\forall$y $\in$ set_btree t. sep < y) $\wedge$
-        ($\forall$sub $\in$ set (subtrees ts). sorted_btree sub) $\wedge$
-        sorted_btree t
-    )"
-\end{lstlisting}
-
-With this function, sortedness of a string can be shown in a modular fashion,
-by showing sortedness of the list elements and the last tree in separate steps.
-Since the equality of the two definition is not plain obvious,
-it is shown in the Isabelle document separately.
-
-\begin{lemma}
-    \texttt{sorted\_less (inorder t) = sorted\_btree t}
-\end{lemma}
+This definition is very compact and brings for another benefit pointed out by Nipkow et al in \parencite{DBLP:conf/itp/Nipkow16}.
+Many properties of B-Trees follow intuitively by considering
+the inorder view on the tree, which is invariant for many operations (i.e. stealing from the right neighbor node).
+We will see later how the use of this fact comes in handy for proving
+important properties of the implementation.
 
 
 \section{Properties}
 
-Height etc.
+%Height etc.
+As pointed out by Bayer in the first paper describing B-Trees,
+the height of B-Trees is logarithmic with respect to the number
+of nodes of the tree. \parencite{DBLP:journals/acta/BayerM72}
+The paper even gives a precise lower and upper bound, which will be quickly sketched in the following.
 
+First, we define the number of nodes in a tree:
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+    fun nodes :: "'a btree $\Rightarrow$ nat" where
+    "nodes Leaf = 0" |
+    "nodes (Node ts t) = 1 + ($\sum$t$\leftarrow$subtrees ts. nodes t) + (nodes t)"
+\end{lstlisting}
+
+To work with this equation, we just need to add one auxiliary lemmas to the standard canon
+\begin{lemma}
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+    sum_list (replicate n c) = n*c
+\end{lstlisting}
+\end{lemma}
+
+The remainder is a lengthy chain of equations resulting in the the upper bound for the
+number of node of a tree of given height.
+\begin{lemma}{Nodes Upper Bound}
+    \textbf{Assume:} order $k$ $t$; bal $t$
+    \begin{equation}
+        \nodes t * (2*k) \le (2*k+1)^{\height t} - 1
+    \end{equation}
+\end{lemma}
 
 \section{Set operations}
 % Description of the implementation of the set interface.

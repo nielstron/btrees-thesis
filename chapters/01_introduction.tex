@@ -22,6 +22,10 @@ The user outlines a proof and tells the system which proof methods to apply to
 resolve each step.
 % TODO more info
 
+% function notation (like haskell/OCaml)
+% proof styles, methods
+% locales
+
 \section{The B-Tree Data Structure}
 
 B-Trees were first proposed by Bayer et al. in \parencite{DBLP:journals/acta/BayerM72},
@@ -38,7 +42,7 @@ Every node contains a list of \texttt{keys} or \texttt{separators}, index elemen
 that refer to further B-Trees.
 The length of this list is bounded by \texttt{k}.
 The separators and subtrees are considered interleaved within a node,
-such that we can speak of a "subtree left of a separator" and a "subtree right of a separator",
+such that we can speak of a subtree left of a separator and a subtree right of a separator,
 where for a separator at index \texttt{i} we mean the subtree in the respective
 subtree list at index \texttt{i} and \texttt{i+1} respectively.
 Note that this already implies that the list of subtrees is one
@@ -48,7 +52,7 @@ In \parencite{DBLP:journals/acta/BayerM72},
 a B-Tree with above structure must fulfill the three properties
 \textit{balancedness}, \textit{order} and \textit{sortedness}.
 
-\textit{Balancedness} requires that "each path from the root to any leaf has the same length \texttt{h}",
+\textit{Balancedness} requires that each path from the root to any leaf has the same length \texttt{h},
 in other words that the height of all trees in one level of the tree must be equal.
 
 Further the indices must be \textit{sorted} within the tree which means that all indices stored
@@ -111,12 +115,13 @@ The work therefore begins with a functional specification of B-Trees.
 %Definition used for this implementation.
 %(esp. order)
 %note that k refers to keys+subtrees rather than only keys/subtrees (false! we have k pairs)
-%Note equivalence for sortedness properties
+
+% TODO all function equations similar to math equations, setting variables in italics
 
 Inspired by the design in \parencite{DBLP:conf/popl/MalechaMSW10}, the B-Tree data-structure is defined as follows:
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
-datatype 'a btree = Leaf | Node "( 'a btree * 'a ) list" "'a btree"
+datatype 'a btree = Leaf | Node ( 'a btree * 'a ) list 'a btree
 \end{lstlisting}
 
 By interleaving the subtrees and separators, expression of invariants
@@ -141,17 +146,17 @@ we simply choose the height of the last tree as an anchor point.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 
-fun height :: "'a btree $\Rightarrow$ nat" where
-  "height Leaf = 0" |
-  "height (Node ts t) = Suc (fold max (map height (subtrees ts)) (height t))"
+fun height :: 'a btree $\Rightarrow$ nat where
+  height Leaf = 0 |
+  height (Node ts t) = Suc (fold max (map height (subtrees ts)) (height t))
 
-fun bal :: "'a btree $\Rightarrow$ bool" where
-    "bal Leaf = True" |
-    "bal (Node ts t) = (
+fun bal :: 'a btree $\Rightarrow$ bool where
+    bal Leaf = True |
+    bal (Node ts t) = (
       ($\forall$sub $\in$ set (subtrees ts). height t = height sub) $\wedge$
       ($\forall$sub $\in$ set (subtrees ts). bal sub) $\wedge$
       bal t
-    )"
+    )
 \end{lstlisting}
 
 Further the \textit{order} of the trees needs to be formally defined.
@@ -161,52 +166,60 @@ Since the last subtree is fixed, this means that the length of list of keys and 
 itself has to be between $k$ and $2*k$.
 Note that we also need a special property for the root of the tree,
 which has between one and $2*k$ elements.
+In mathematical equations, we will denote "order $k$ $t$" as "$\order_k t$"
+for convenience (likewise for "root\_order $k$ $t$"), which is to be read as
+"Tree $t$ is of order $k$".
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 
-fun order :: "nat $\Rightarrow$ 'a btree $\Rightarrow$ bool" where
-    "order k Leaf = True" |
-    "order k (Node ts t) = (
+fun order :: nat $\Rightarrow$ 'a btree $\Rightarrow$ bool where
+    order k Leaf = True |
+    order k (Node ts t) = (
     (length ts $\ge$ k)  $\wedge$
     (length ts $\le$ 2*k) $\wedge$
     ($\forall$sub $\in$ set (subtrees ts). order k sub) $\wedge$
     order k t
-  )"
+  )
 
 fun root_order where
-  "root_order k Leaf = True" |
-  "root_order k (Node ts t) = (
+  root_order k Leaf = True |
+  root_order k (Node ts t) = (
   (length ts $>$ 0) $\wedge$
   (length ts $\le$ 2*k) $\wedge$
   ($\forall$s $\in$ set (subtrees ts). order k s) $\wedge$
    order k t
-)"
+)
 
-  
 \end{lstlisting}
 
 We define the sortedness of a B-Tree based on the \textit{inorder} of the tree,
-the concatenation of all elements of the tree in in-order traversal.
+which is the concatenation of all elements of the tree in in-order traversal.
 Since the tree does no longer have a constant maximum number of elements (as opposed to
 e.g. 2-3-4-Trees in \parencite{DBLP:conf/itp/Nipkow16}),
-a folding operation is employed to express the resulting string. 
+a concatenation function for lists of strings
+is employed to express the resulting string.
+Note that this definition reads a bit inconveniently
+as the list of subtrees and separators is first mapped and then concatenated.
+However since we make recursive use of the inorder-function
+inside the mapping expression, we can only later on cover up this expression
+by using abbreviations.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
-fun inorder :: "'a btree $\Rightarrow$ 'a list" where
-    "inorder Leaf = []" |
-    "inorder (Node ts t) = (concat (map ($\lambda$ (sub, sep). inorder sub @ [sep]) ts)) @ inorder t"
+fun inorder :: 'a btree $\Rightarrow$ 'a list where
+    inorder Leaf = [] |
+    inorder (Node ts t) = (concat (map ($\lambda$ (sub, sep). inorder sub @ [sep]) ts)) @ inorder t
 
-abbreviation "inorder_pair  $\equiv$ $\lambda$(sub,sep). inorder sub @ [sep]"
-abbreviation "inorder_list ts $\equiv$ concat (map ($\lambda$ a. inorder_pair a) ts)"
+abbreviation inorder_pair  $\equiv$ $\lambda$(sub,sep). inorder sub @ [sep]
+abbreviation inorder_list ts $\equiv$ concat (map inorder_pair ts)
 \end{lstlisting}
 
-That way we can express sortedness of the tree as a simple \texttt{sorted\_less (inorder t)}.
+That way we can express sortedness of the tree $t$ as a simple "sorted\_less (inorder $t$)".
 This definition is very compact and brings for another benefit pointed out by Nipkow et al in \parencite{DBLP:conf/itp/Nipkow16}.
 Many properties of B-Trees follow intuitively by considering
-the inorder view on the tree, which is invariant for many operations (i.e. stealing from the right neighbor node).
+the inorder view on the tree as it is invariant for many operations (i.e. stealing from the right neighbor node).
 We will see later how the use of this fact comes in handy for proving
 important properties of the implementation.
-
+ % TODO note benefit over btree_sorted
 
 \section{Properties}
 
@@ -218,29 +231,85 @@ The paper even gives a precise lower and upper bound, which will be quickly sket
 
 First, we define the number of nodes in a tree:
 \begin{lstlisting}[mathescape=true, language=Isabelle]
-    fun nodes :: "'a btree $\Rightarrow$ nat" where
-    "nodes Leaf = 0" |
-    "nodes (Node ts t) = 1 + ($\sum$t$\leftarrow$subtrees ts. nodes t) + (nodes t)"
+fun nodes :: 'a btree $\Rightarrow$ nat where
+    nodes Leaf = 0 |
+    nodes (Node ts t) = 1 + ($\sum$t$\leftarrow$subtrees ts. nodes t) + (nodes t)
 \end{lstlisting}
 
-To work with this equation, we just need to add one auxiliary lemmas to the standard canon
+%To work with this equation, we just need to add one auxiliary lemmas to the standard canon
+%\begin{lemma}
+%\begin{lstlisting}[mathescape=true, language=Isabelle]
+%    sum_list (replicate n c) = n*c
+%\end{lstlisting}
+%\end{lemma}
+
+By induction on the computation of the nodes function we obtain bounds
+on the number of nodes of an subtree with respect to its height
+(note that "order" is assumed rather than "root\_order").
+
 \begin{lemma}
-\begin{lstlisting}[mathescape=true, language=Isabelle]
-    sum_list (replicate n c) = n*c
-\end{lstlisting}
+    \label{lem:bound_internal_node}
+    $\order_k t \wedge \bal t \longrightarrow$
+    \begin{align}
+        (k+1)^{\height t} - 1 &\le \nodes t * k \\
+        \nodes t * 2k &\le (2k+1)^{\height t} - 1
+    \end{align}
 \end{lemma}
 
-The remainder is a lengthy chain of equations resulting in the the upper bound for the
-number of node of a tree of given height.
-\begin{lemma}{Nodes Upper Bound}
-    \textbf{Assume:} order $k$ $t$; bal $t$
+From \autoref{lem:bound_internal_node} we can almost directly obtain
+the bounds on valid roots of B-Trees.
+
+\begin{theorem}
+    $\rootorder_k t \wedge \bal t \wedge k > 0 \longrightarrow$
     \begin{equation}
-        \nodes t * (2*k) \le (2*k+1)^{\height t} - 1
+        2((k+1)^{\height t - 1} - 1) \div k + (t \neq Leaf) \le \nodes t \le ((2k+1)^{\height t} - 1) \div 2k
     \end{equation}
+\end{theorem}
+
+These bounds are sharp, which can be proven by first showing that
+the bounds for internal nodes are sharp.
+We define functions that generate exactly those trees
+that satisfy the requirements of B-Trees, have a given height
+and satisfy the inequality with equality.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+
+fun full_node where
+  full_node k c 0 = Leaf |
+  full_node k c (Suc n) = (Node (replicate (2*k) ((full_node k c n),c)) (full_node k c n))
+
+fun slim_node where
+  slim_node k c 0 = Leaf |
+  slim_node k c (Suc n) = (Node (replicate k ((slim_node k c n),c)) (slim_node k c n))
+
+definition full_tree = full_node
+
+fun slim_tree where
+  slim_tree k c 0 = Leaf |
+  slim_tree k c (Suc h) = Node [(slim_node k c h, c)] (slim_node k c h)
+
+\end{lstlisting}
+
+\begin{lemma} $t := \fullnode k\ a\ h \wedge t' := \slimnode k\ a\ h \longrightarrow h = \height t \wedge$
+    \begin{align}
+    ((2k+1)^h - 1) &= \nodes t * (2k) &\wedge \order_k t \wedge \bal t \\ 
+    ((k+1)^h - 1) &= \nodes t * k  &\wedge \order_k t \wedge \bal t
+    \end{align}
 \end{lemma}
+
+\begin{theorem}
+    $k > 0 \wedge t := \fulltree k\ a\ h \wedge t' := \slimtree k\ a\ h \longrightarrow h = \height t \wedge$
+    \begin{align}
+        ((2k+1)^h - 1) &= \nodes t * (2k) &\wedge \rootorder_k t \wedge \bal t \\ 
+        2((k+1)^h - 1) + k(t \neq Leaf) &= \nodes t * k  &\wedge \rootorder_k t \wedge \bal t
+    \end{align}
+\end{theorem}
+
 
 \section{Set operations}
 % Description of the implementation of the set interface.
+% TODO note that the proof for  sortedness has been reduced from 2000 lines
+% by the sorted (inorder ...) notation (and Nipkows auxiliary funs/lemmas)
 
 With the definition of B-Trees come a number of operations that allow for set-like operations
 on the trees - retrieval, insertion and deletion.
@@ -260,6 +329,13 @@ by a linear search that is promised to be replaced by a more efficient binary se
 in the actual implementation \parencite{DBLP:books/daglib/0023376,DBLP:journals/acta/BayerM72}
 or left in the final code \parencite{DBLP:journals/sosym/ErnstSR15}
 
+For this work, I have started out by defining a simple split function
+that walks through the subtree-separator list linearly and returns
+a tupel that ....
+
+then abtract from that ...
+
+prove everything based on abstract definition -> locale % TODO add to isabelle intro
 
 
 \chapter{Imperative B-Trees in Isabelle}

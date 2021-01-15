@@ -22,9 +22,19 @@ The user outlines a proof and tells the system which proof methods to apply to
 resolve each step.
 % TODO more info
 
+Isabelle/HOL is built on PolyML, a functional language similar to OCaml
+and Haskell.
+The implementation will hence make use of newly defined functions, where
+\texttt{definition} denotes classical definitions and \texttt{fun} (an abbreviation of "function")
+is used for recursive definition.
+
 % function notation (like haskell/OCaml)
-% proof styles, methods
+% can write mathematical expressions (?)
+% list notation etc
+% proof styles, methods (?)
 % locales
+% set specification
+% TODO cite isabelle resources
 
 \section{The B-Tree Data Structure}
 
@@ -134,10 +144,10 @@ Operations that require the subtree on the right can always be expressed as a sp
 operation on the last tree.
 
 The balancedness of a B-Tree is defined in a straightforward fashion, making use
-of an intuitively defined height\footnote{
+of an intuitively defined height.\footnote{
     Note that the actual implementation of height is slightly different,
     however this is of no importance in any proofs but rather notationally convenient.
-}.
+}
 There is a choice here, namely whether to fix the balancedness of a tree
 on some arbitrary number or on a known value.
 Since we know the last tree in the node exists and further
@@ -207,13 +217,16 @@ by using abbreviations.
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 fun inorder :: 'a btree $\Rightarrow$ 'a list where
     inorder Leaf = [] |
-    inorder (Node ts t) = (concat (map ($\lambda$ (sub, sep). inorder sub @ [sep]) ts)) @ inorder t
+    inorder (Node ts t) = 
+        concat (map ($\lambda$ (sub, sep). inorder sub @ [sep]) ts)
+        @ inorder t
 
 abbreviation inorder_pair  $\equiv$ $\lambda$(sub,sep). inorder sub @ [sep]
 abbreviation inorder_list ts $\equiv$ concat (map inorder_pair ts)
 \end{lstlisting}
 
-That way we can express sortedness of the tree $t$ as a simple "sorted\_less (inorder $t$)".
+That way we can express sortedness of the tree $t$ as a simple $\sorted (\inorder t)$,
+where sorted returns whether each element is strictly smaller ($<$) than the elements in the remaining list.
 This definition is very compact and brings for another benefit pointed out by Nipkow et al in \parencite{DBLP:conf/itp/Nipkow16}.
 Many properties of B-Trees follow intuitively by considering
 the inorder view on the tree as it is invariant for many operations (i.e. stealing from the right neighbor node).
@@ -233,7 +246,8 @@ First, we define the number of nodes in a tree:
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 fun nodes :: 'a btree $\Rightarrow$ nat where
     nodes Leaf = 0 |
-    nodes (Node ts t) = 1 + ($\sum$t$\leftarrow$subtrees ts. nodes t) + (nodes t)
+    nodes (Node ts t) =
+        1 + $\sum$t$\leftarrow$subtrees ts. nodes t + nodes t
 \end{lstlisting}
 
 %To work with this equation, we just need to add one auxiliary lemmas to the standard canon
@@ -243,9 +257,9 @@ fun nodes :: 'a btree $\Rightarrow$ nat where
 %\end{lstlisting}
 %\end{lemma}
 
-By induction on the computation of the nodes function we obtain bounds
+We obtain bounds
 on the number of nodes of an subtree with respect to its height
-(note that "order" is assumed rather than "root\_order").
+by induction on the computation of the nodes function.
 
 \begin{lemma}
     \label{lem:bound_internal_node}
@@ -258,6 +272,16 @@ on the number of nodes of an subtree with respect to its height
 
 From \autoref{lem:bound_internal_node} we can almost directly obtain
 the bounds on valid roots of B-Trees.
+The only difference to the bound of internal nodes occurs on the lower bound side.
+The issue here is that a root node may contain less elements than
+a valid internal node (namely only one), which yields two subtrees with known height
+plus one for the node itself.
+Note that these are the exact bounds obtained by Bayer et al. in \parencite{DBLP:journals/acta/BayerM72},
+except for the fact that we have generalized the equation,
+incorporating whether $t$ is a tree or not.\footnote{
+    If $t$ is in fact a Leaf,
+    $2((k+1)^{\height t - 1} - 1) \div k + (t \neq Leaf)$ becomes a fancy way of writing $0$.
+}
 
 \begin{theorem}
     $\rootorder_k t \wedge \bal t \wedge k > 0 \longrightarrow$
@@ -266,42 +290,65 @@ the bounds on valid roots of B-Trees.
     \end{equation}
 \end{theorem}
 
-These bounds are sharp, which can be proven by first showing that
-the bounds for internal nodes are sharp.
-We define functions that generate exactly those trees
+These results are very interesting, because
+the runtime of all further operations will more or less trivially be
+directly proportional to the height of the tree.
+Therefore, we are glad to see that the height is logarithmic
+with respect to the number of nodes stored in the tree.
+
+These bounds are sharp, which we prove by providing 
+functions that generate exactly those trees
 that satisfy the requirements of B-Trees, have a given height
 and satisfy the inequality with equality.
+The proof for internal nodes follows by induction over the creation,
+the rule for the roots follows directly.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 
 fun full_node where
   full_node k c 0 = Leaf |
-  full_node k c (Suc n) = (Node (replicate (2*k) ((full_node k c n),c)) (full_node k c n))
+  full_node k c (Suc n) = (
+      Node
+        (replicate (2*k) ((full_node k c n),c))
+        (full_node k c n)
+  )
 
 fun slim_node where
   slim_node k c 0 = Leaf |
-  slim_node k c (Suc n) = (Node (replicate k ((slim_node k c n),c)) (slim_node k c n))
+  slim_node k c (Suc n) = (
+      Node
+        (replicate k ((slim_node k c n),c))
+        (slim_node k c n)
+    )
 
 definition full_tree = full_node
 
 fun slim_tree where
   slim_tree k c 0 = Leaf |
-  slim_tree k c (Suc h) = Node [(slim_node k c h, c)] (slim_node k c h)
+  slim_tree k c (Suc h) =
+    Node
+        [(slim_node k c h, c)]
+        (slim_node k c h)
 
 \end{lstlisting}
 
-\begin{lemma} $t := \fullnode k\ a\ h \wedge t' := \slimnode k\ a\ h \longrightarrow h = \height t \wedge$
+%TODO (?) images of slim/full trees
+
+\begin{lemma} $t_f := \fullnode k\ a\ h \wedge t_s := \slimnode k\ a\ h \longrightarrow$
     \begin{align}
-    ((2k+1)^h - 1) &= \nodes t * (2k) &\wedge \order_k t \wedge \bal t \\ 
-    ((k+1)^h - 1) &= \nodes t * k  &\wedge \order_k t \wedge \bal t
+    h = \height t_s = \height t_f \wedge \\
+    ((2k+1)^h - 1) &= \nodes t_f * (2k) &\wedge \order_k t_f \wedge \bal t_f \\ 
+    ((k+1)^h - 1) &= \nodes t_s * k  &\wedge \order_k t_s \wedge \bal t_s
     \end{align}
 \end{lemma}
 
+% TODO prove div version of thm
 \begin{theorem}
-    $k > 0 \wedge t := \fulltree k\ a\ h \wedge t' := \slimtree k\ a\ h \longrightarrow h = \height t \wedge$
+    $k > 0 \wedge t_f := \fulltree k\ a\ h \wedge t_s := \slimtree k\ a\ h \longrightarrow$
     \begin{align}
-        ((2k+1)^h - 1) &= \nodes t * (2k) &\wedge \rootorder_k t \wedge \bal t \\ 
-        2((k+1)^h - 1) + k(t \neq Leaf) &= \nodes t * k  &\wedge \rootorder_k t \wedge \bal t
+    h = \height t_s = \height t_f \wedge \\
+        ((2k+1)^h - 1) \div 2k &= \nodes t_f &\wedge \rootorder_k t_f \wedge \bal t_f \\ 
+        2((k+1)^h - 1) \div k + (t_s \neq Leaf) &= \nodes t_s &\wedge \rootorder_k t_s \wedge \bal t_s
     \end{align}
 \end{theorem}
 
@@ -315,11 +362,14 @@ With the definition of B-Trees come a number of operations that allow for set-li
 on the trees - retrieval, insertion and deletion.
 Naturally these operations are defined recursively on the nodes of the tree.
 Since each node contains a non-trivial number of elements,
-a function to navigate to the correct subtree is central to all operations.
+a function to navigate to the correct separator and subtree is central to all operations.
+
 We call this function \textit{split}-function,
 determining the position in the list of separators and subtrees at which
 either the separator is equal to the desired value or the range of the left subtree
 contains the desired value.
+Since the whole tree is sorted, we know that if the element being searched for
+is contained anywhere in the tree, it must be in that subtree.
 This approach is similar to the one found in the work of Malecha and Fielding \parencite{DBLP:conf/popl/MalechaMSW10,Fielding80}.\footnote{
     In Fieldings approach the corresponding function is called \textit{index}.
     Malecha calls it \textit{findSubtree}.
@@ -329,9 +379,46 @@ by a linear search that is promised to be replaced by a more efficient binary se
 in the actual implementation \parencite{DBLP:books/daglib/0023376,DBLP:journals/acta/BayerM72}
 or left in the final code \parencite{DBLP:journals/sosym/ErnstSR15}
 
-For this work, I have started out by defining a simple split function
-that walks through the subtree-separator list linearly and returns
-a tupel that ....
+The precise inner working of the split function are not of interest here
+and actually are not supposed to be interesting on the functional level.
+Of course \textit{some} kind of function is required that correctly splits
+the key-value list and an example is given in \autoref{fig:linear_split}.
+In the process of implementing the set specifications,
+this concrete function was used to explore the provability of the set methods.
+However it quickly turned out that 1) only specific lemmas about the split
+function are useful and 2) only relying on an abstract specification of
+the split method would simplify integrating alternative splitting functions.
+
+\begin{figure}
+    
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+fun linear_split_help where
+  linear_split_help [] x prev = (prev, []) |
+  linear_split_help ((sub, sep)#xs) x prev = (
+      if sep < x then
+        linear_split_help xs x (prev @ [(sub, sep)])
+      else
+        (prev, (sub,sep)#xs)
+  )
+
+fun linear_split:: ('a btree$\times$'a) list $\Rightarrow$ 'a $\Rightarrow$ (_ list $\times$ _ list) where
+  linear_split xs x = linear_split_help xs x []
+\end{lstlisting}
+\caption{A function implementing the split function specifications.
+It scans linearly through the list, returning the first tupel that could potentially contain
+the value $x$}
+\label{fig:linear_split}
+
+\end{figure}
+
+Therefore all set functions are defined based on an abstract
+split function that fulfils the following requirements:
+
+\begin{itemize}
+    \item $\splitfun xs\ p = (ls,rs) \Longrightarrow ls @ rs = xs$
+    \item $\splitfun xs\ p = (ls@[(sub,sep)],rs) \wedge \sorted (\separators xs) \Longrightarrow sep < p$
+    \item $\splitfun xs\ p = (ls,(sub,sep)\#rs) \wedge \sorted (\separators xs) \Longrightarrow p \le sep$
+\end{itemize}
 
 then abtract from that ...
 

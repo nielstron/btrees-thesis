@@ -420,6 +420,12 @@ split function that fulfils the following requirements:
     \item $\splitfun xs\ p = (ls,(sub,sep)\#rs) \wedge \sorted (\separators xs) \Longrightarrow p \le sep$
 \end{itemize}
 
+Described in natural language, the split function should return two sublists
+that concatenate to the original list.
+Further if the elements came in sorted order,
+the list is split such that the key to the left is strictly less than the desired value
+and the key to the right less or equal.
+
 then abtract from that ...
 
 prove everything based on abstract definition -> locale % TODO add to isabelle intro

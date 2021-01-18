@@ -130,7 +130,7 @@ The work therefore begins with a functional specification of B-Trees.
 
 Inspired by the design in \parencite{DBLP:conf/popl/MalechaMSW10}, the B-Tree data-structure is defined as follows:
 
-\begin{lstlisting}[mathescape=true, language=Isabelle]
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-def]
 datatype 'a btree = Leaf | Node ( 'a btree * 'a ) list 'a btree
 \end{lstlisting}
 
@@ -204,12 +204,12 @@ fun root_order where
 
 We define the sortedness of a B-Tree based on the \textit{inorder} of the tree,
 which is the concatenation of all elements of the tree in in-order traversal.
-Since the tree does no longer have a constant maximum number of elements (as opposed to
+A concatenation function for lists of strings
+is employed to express the resulting string,
+since each node does no longer have a constant maximum number of elements (as opposed to
 e.g. 2-3-4-Trees in \parencite{DBLP:conf/itp/Nipkow16}),
-a concatenation function for lists of strings
-is employed to express the resulting string.
 Note that this definition reads a bit inconveniently
-as the list of subtrees and separators is first mapped and then concatenated.
+as the node internal list is first mapped and then concatenated.
 However since we make recursive use of the inorder-function
 inside the mapping expression, we can only later on cover up this expression
 by using abbreviations.
@@ -354,12 +354,46 @@ fun slim_tree where
 
 
 \section{Set operations}
+
+With the definition of B-Trees come a number of operations that allow for set-like operations
+on the trees - retrieval, insertion and deletion.
+In the Isabelle/HOL framework, there is a standard interface
+for data structures that provide an implementation of sets.
+
+\subsection{The Set Interface}
+% Description of the set interface
+
+An implementation $t$ of the sets of elements of type $'a$ is required to provide the following
+operations
+
+\begin{itemize}
+    \item $\emptyfun :: 'a t$
+    \item $\isinfun :: 'a t \Rightarrow 'a \Rightarrow bool$
+    \item $\insertfun :: 'a \Rightarrow 'a t \Rightarrow 'a t$
+    \item $\deletefun :: 'a \Rightarrow 'a t \Rightarrow 'a t$
+\end{itemize}
+
+These operations are specified with respect to a so called \textit{abstraction function}
+$\setfun :: 'a t \Rightarrow 'a set$ that generates a corresponding set of all elements
+contained in the data-structure.
+For this work, using the definition from \autoref{lst:btree-def},
+we consider $t = btree$ in all above equations.
+The standard approach is to show that we can provide functions for the B-Tree
+that have the same effect as insertion, deletion or testing on contained elements
+in abstract sets with the same elements.
+
+However, as pointed out by Nipkow, using an inorder function to
+as an intermediate abstraction step, proofs tend to become simpler for a simplifying
+mechanism to resolve. \parencite{DBLP:conf/itp/Nipkow16}
+We therefore resort to an alternative set interface, that fulfils the standard interface as well.
+It additionally requires a function $inorder :: 'a t \Rightarrow 'a list$
+and ... % TODO
+
+\subsection{The split-Function}
 % Description of the implementation of the set interface.
 % TODO note that the proof for  sortedness has been reduced from 2000 lines
 % by the sorted (inorder ...) notation (and Nipkows auxiliary funs/lemmas)
 
-With the definition of B-Trees come a number of operations that allow for set-like operations
-on the trees - retrieval, insertion and deletion.
 Naturally these operations are defined recursively on the nodes of the tree.
 Since each node contains a non-trivial number of elements,
 a function to navigate to the correct separator and subtree is central to all operations.
@@ -379,15 +413,17 @@ by a linear search that is promised to be replaced by a more efficient binary se
 in the actual implementation \parencite{DBLP:books/daglib/0023376,DBLP:journals/acta/BayerM72}
 or left in the final code \parencite{DBLP:journals/sosym/ErnstSR15}
 
-The precise inner working of the split function are not of interest here
+The precise inner workings of the split function are not of interest here
 and actually are not supposed to be interesting on the functional level.
 Of course \textit{some} kind of function is required that correctly splits
 the key-value list and an example is given in \autoref{fig:linear_split}.
 In the process of implementing the set specifications,
 this concrete function was used to explore the provability of the set methods.
 However it quickly turned out that 1) only specific lemmas about the split
-function are useful and 2) only relying on an abstract specification of
+function are useful during proofs and 2) only relying on an abstract specification of
 the split method would simplify integrating alternative splitting functions.
+Most notably, the abstraction allows to later plug-in a very efficient splitting
+function, e.g. based on binary search.
 
 \begin{figure}
     
@@ -405,17 +441,16 @@ fun linear_split:: ('a btree$\times$'a) list $\Rightarrow$ 'a $\Rightarrow$ (_ l
   linear_split xs x = linear_split_help xs x []
 \end{lstlisting}
 \caption{A function implementing the split function specifications.
-It scans linearly through the list, returning the first tupel that could potentially contain
-the value $x$}
+It scans linearly through the list, returning the first tuple where the separator
+or subtree could potentially contain the value $x$}
 \label{fig:linear_split}
 
 \end{figure}
 
-Therefore all set functions are defined based on an abstract
-split function that fulfils the following requirements:
+Therefore all set functions are defined based the following requirements:
 
 \begin{itemize}
-    \item $\splitfun xs\ p = (ls,rs) \Longrightarrow ls @ rs = xs$
+    \item $\splitfun xs\ p = (ls,rs) \Longrightarrow xs = ls @ rs$
     \item $\splitfun xs\ p = (ls@[(sub,sep)],rs) \wedge \sorted (\separators xs) \Longrightarrow sep < p$
     \item $\splitfun xs\ p = (ls,(sub,sep)\#rs) \wedge \sorted (\separators xs) \Longrightarrow p \le sep$
 \end{itemize}
@@ -427,6 +462,8 @@ the list is split such that the key to the left is strictly less than the desire
 and the key to the right less or equal.
 
 then abtract from that ...
+
+\subsection{Implementation of the Set interface}
 
 prove everything based on abstract definition -> locale % TODO add to isabelle intro
 

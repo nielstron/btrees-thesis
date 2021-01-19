@@ -29,6 +29,7 @@ The implementation will hence make use of newly defined functions, where
 is used for recursive definition.
 
 % function notation (like haskell/OCaml)
+% NOTE all functions terminate, unless declared "partial"
 % can write mathematical expressions (?)
 % list notation etc
 % proof styles, methods (?)
@@ -512,9 +513,10 @@ sorted, balanced trees of a certain order, however only the former is actually r
 for correctness.
 The following lemma shows the required property of the function
 
-\begin{lemma}
+\begin{theorem}
+    \label{thm:isin-set}
     $\sorted (\inorder t) \Longrightarrow \isinfun t\ x = (x \in \setfun (\inorder t))$
-\end{lemma}
+\end{theorem}
 
 It follows by induction on the evaluation of the isin function.
 To prove it, we also invoke two specialized lemmas,
@@ -529,9 +531,39 @@ are used for the correctness proofs of insert and delete alike.
 \end{lemma}
 
 The idea of this fact is to argue that, if the split function has provided
-us with a given splitting, it is safe to limit the recursive considerations
-to the part on the right side of the split.
-Note that this always also includes the last tree of the node, i.e. even if $rs$ is empty.
+us with a given splitting, it is safe to limit the further search
+to the right side of the split.
+It follows directly from the requirements on the split function.
+If $rs$ is empty, we can follow that the element has to reside in the inorder
+of the last tree of the node.
+When used in the inductive proof of \autoref{thm:isin-set}, we can then deduce that this is
+equal to $\isinfun t\ x$, the branch taken in the isin function for an empty right split result.
+If $rs$ is not empty, we need an additional lemma.
+
+\begin{lemma}
+    $\sorted (\inorder t) \wedge \splitfun ts\ x = (ls, (sub,sep)\#rs) \wedge sep \neq x \Longrightarrow$ \\
+    $x \in (\setfun (\inorder (sub,sep)\#rs @ \inorder t)) = (x \in \setfun (\inorder sub))$
+\end{lemma}
+
+With this lemma we know that the first subtree on the right part of the split
+is the correct child to recurse into.
+The requirement of $sep \neq x$ comes from the fact that in case $sep = x$,
+no recursion is required at all.
+The desired element was just found.
+
+This operation has no effect on the tree, it only walks through it.
+This fact follows directly due to the persistence of functional data structures.
+Hence, no proof of preserved invariant is required.
+
+However this is not true for the \textit{insertion} function.
+There is much consensus in the literature on how to conduct insertion into a B-Tree
+%TODO citations
+Generally, an element is inserted into leaf nodes.
+In case that there is enough space, the node is simply placed at the correct
+position in the list of separators.
+However if the node has more than $2k$ elements after this insertion,
+we need to split it and, passing the median to the parent node,
+recurse back upwards.
 
 prove everything based on abstract definition -> locale % TODO add to isabelle intro
 

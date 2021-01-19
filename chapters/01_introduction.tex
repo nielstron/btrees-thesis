@@ -122,6 +122,7 @@ mostly due to the fact that many details of implementation can be abstracted awa
 The work therefore begins with a functional specification of B-Trees.
 
 \section{Basic Definitions}
+\label{sec:basic-defs}
 %Definition used for this implementation.
 %(esp. order)
 %note that k refers to keys+subtrees rather than only keys/subtrees (false! we have k pairs)
@@ -213,6 +214,8 @@ as the node internal list is first mapped and then concatenated.
 However since we make recursive use of the inorder-function
 inside the mapping expression, we can only later on cover up this expression
 by using abbreviations.
+In mathematical terms in the following, we will not distinguish between lists, 
+pairs or trees when talking about their inorder representation.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 fun inorder :: 'a btree $\Rightarrow$ 'a list where
@@ -234,7 +237,7 @@ We will see later how the use of this fact comes in handy for proving
 important properties of the implementation.
  % TODO note benefit over btree_sorted
 
-\section{Properties}
+\section{Height of B-Trees}
 
 %Height etc.
 As pointed out by Bayer in the first paper describing B-Trees,
@@ -363,38 +366,44 @@ for data structures that provide an implementation of sets.
 \subsection{The Set Interface}
 % Description of the set interface
 
-An implementation $t$ of the sets of elements of type $'a$ is required to provide the following
+An implementation $'a t$ of the sets of elements of type $'a$ is required to provide the following
 operations
 
 \begin{itemize}
-    \item $\emptyfun :: 'a t$
-    \item $\isinfun :: 'a t \Rightarrow 'a \Rightarrow bool$
-    \item $\insertfun :: 'a \Rightarrow 'a t \Rightarrow 'a t$
-    \item $\deletefun :: 'a \Rightarrow 'a t \Rightarrow 'a t$
+    \itshape
+    \item empty :: 'a t
+    \item isin :: 'a t $\Rightarrow$ 'a $\Rightarrow$ bool
+    \item insert :: 'a $\Rightarrow$ 'a t $\Rightarrow$ 'a t
+    \item delete :: 'a $\Rightarrow$ 'a t $\Rightarrow$ 'a t
 \end{itemize}
 
-These operations are specified with respect to a so called \textit{abstraction function}
-$\setfun :: 'a t \Rightarrow 'a set$ that generates a corresponding set of all elements
-contained in the data-structure.
 For this work, using the definition from \autoref{lst:btree-def},
-we consider $t = btree$ in all above equations.
+we consider \textit{'a t = 'a btree} in all above equations.
 The standard approach is to show that we can provide functions for the B-Tree
 that have the same effect as insertion, deletion or testing on contained elements
 in abstract sets with the same elements.
 
-However, as pointed out by Nipkow, using an inorder function to
+However, using an inorder function to
 as an intermediate abstraction step, proofs tend to become simpler for a simplifying
-mechanism to resolve. \parencite{DBLP:conf/itp/Nipkow16}
-We therefore resort to an alternative set interface, that fulfils the standard interface as well.
-It additionally requires a function $inorder :: 'a t \Rightarrow 'a list$
-and ... % TODO
+based prover to resolve. 
+This method has been applied in \parencite{DBLP:conf/itp/Nipkow16} and yielded
+fully automatic proofs.
+We therefore resort to the alternative interface proposed in that work.
+In addition to an \textit{invariant}
+it requires a function \textit{inorder :: 'a t $\Rightarrow$ 'a list}
+that is associated with the inorder traversal of the tree.
+The invariant and inorder functions follow directly from the
+definition of B-Trees in \autoref{sec:basic-defs}.
+What is needed in addition are the set operations
+and the proof that they maintain the invariants.
+
 
 \subsection{The split-Function}
 % Description of the implementation of the set interface.
 % TODO note that the proof for  sortedness has been reduced from 2000 lines
 % by the sorted (inorder ...) notation (and Nipkows auxiliary funs/lemmas)
 
-Naturally these operations are defined recursively on the nodes of the tree.
+Naturally the set operations are defined recursively on the nodes of the tree.
 Since each node contains a non-trivial number of elements,
 a function to navigate to the correct separator and subtree is central to all operations.
 
@@ -461,9 +470,68 @@ Further if the elements came in sorted order,
 the list is split such that the key to the left is strictly less than the desired value
 and the key to the right less or equal.
 
-then abtract from that ...
+The benefit of restricting the sortedness of the list only to its separators
+simplifies the proofs of showing that a certain function fulfils the split abstraction.
+We really only need to consider the separators on each level and not the subtrees themselves.
+Showing that the function works on a sorted inorder list
+would only introduce an additional step to follow that the separators are sorted as well.
+Having fixated this abstraction we only need to follow this fact once
+and can relieve the writer of split functions of the need to do so.
+
+The abstraction was formulated in a locale.
+Inside the locale we have access to exactly the specified split function,
+without knowing anything about the composition of that function.
 
 \subsection{Implementation of the Set interface}
+
+The simplest operation required in the Set interface is
+the \textit{isin} function.
+Its definition below also shows exemplary usage of the split function.
+In case the right part of the split list is non-empty,
+we check the element at that level or recurse in the given subtree.
+Otherwise, we may directly recurse to the last tree in the node.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+fun isin:: 'a btree $\Rightarrow$ 'a $\Rightarrow$ bool where
+    isin (Leaf) y = False |
+    isin (Node ts t) y = (
+        case split ts y of (_,rs) $\Rightarrow$ (
+            case rs of (sub,sep)#_ $\Rightarrow$ (
+                if y = sep then
+                    True
+                else
+                    isin sub y
+            )
+        | [] $\Rightarrow$ isin t y
+        )
+    )
+\end{lstlisting}
+
+By the standard set interface the operation is only required to work on
+sorted, balanced trees of a certain order, however only the former is actually required
+for correctness.
+The following lemma shows the required property of the function
+
+\begin{lemma}
+    $\sorted (\inorder t) \Longrightarrow \isinfun t\ x = (x \in \setfun (\inorder t))$
+\end{lemma}
+
+It follows by induction on the evaluation of the isin function.
+To prove it, we also invoke two specialized lemmas,
+that simplify arguments about the choice of the node for recursion.
+The kind of lemmas are of special interest as they specialize
+an idea proposed in \parencite{DBLP:conf/itp/Nipkow16} and
+are used for the correctness proofs of insert and delete alike.
+
+\begin{lemma}
+    $\sorted (\inorder t) \wedge \splitfun ts\ x = (ls, rs) \Longrightarrow$ \\
+    $x \in (\setfun (\inorder (Node\ ts\ t))) = (x \in \setfun (\inorder rs @ \inorder t))$
+\end{lemma}
+
+The idea of this fact is to argue that, if the split function has provided
+us with a given splitting, it is safe to limit the recursive considerations
+to the part on the right side of the split.
+Note that this always also includes the last tree of the node, i.e. even if $rs$ is empty.
 
 prove everything based on abstract definition -> locale % TODO add to isabelle intro
 

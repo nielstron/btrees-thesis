@@ -23,7 +23,7 @@ resolve each step.
 % TODO more info
 
 Isabelle/HOL is built on PolyML, a functional language similar to OCaml
-and Haskell.
+and Haskell.% factual accuracy
 The implementation will hence make use of newly defined functions, where
 \texttt{definition} denotes classical definitions and \texttt{fun} (an abbreviation of "function")
 is used for recursive definition.
@@ -42,6 +42,7 @@ is used for recursive definition.
 B-Trees were first proposed by Bayer et al. in \parencite{DBLP:journals/acta/BayerM72},
 as a data-structure to efficiently store and retrieve indices stored on storage devices
 with slow memory access.
+They are a generalization of 234-Trees and a specialization of (a,b)-Trees. %citation
 In general, B-Trees are hence a special kind of balanced search-trees.
 They are different from binary trees in that the number of subtrees is not constant 2
 but is defined by the \textit{order} \texttt{k} of the tree.
@@ -487,26 +488,26 @@ without knowing anything about the composition of that function.
 
 The simplest operation required in the Set interface is
 the \textit{isin} function.
-Its definition below also shows exemplary usage of the split function.
+The definition in \autoref{lst:isin-fun} also shows exemplary usage of the split function.
 In case the right part of the split list is non-empty,
 we check the element at that level or recurse in the given subtree.
 Otherwise, we may directly recurse to the last tree in the node.
 
-\begin{lstlisting}[mathescape=true, language=Isabelle]
+\begin{figure}
+\begin{lstlisting}[mathescape=true, language=Isabelle, caption=The \textit{isin} function, label=lst:isin-fun]
 fun isin:: 'a btree $\Rightarrow$ 'a $\Rightarrow$ bool where
     isin (Leaf) y = False |
     isin (Node ts t) y = (
-        case split ts y of (_,rs) $\Rightarrow$ (
-            case rs of (sub,sep)#_ $\Rightarrow$ (
-                if y = sep then
-                    True
-                else
-                    isin sub y
-            )
-        | [] $\Rightarrow$ isin t y
+        case split ts y of (_,(sub,sep)#rs) $\Rightarrow$ (
+            if y = sep then
+                True
+            else
+                isin sub y
         )
+    | (_,[]) $\Rightarrow$ isin t y
     )
 \end{lstlisting}
+\end{figure}
 
 By the standard set interface the operation is only required to work on
 sorted, balanced trees of a certain order, however only the former is actually required
@@ -519,10 +520,10 @@ The following lemma shows the required property of the function
 \end{theorem}
 
 It follows by induction on the evaluation of the isin function.
-To prove it, we also invoke two specialized lemmas,
+To prove it, we invoke two specialized lemmas,
 that simplify arguments about the choice of the node for recursion.
 The kind of lemmas are of special interest as they specialize
-an idea proposed in \parencite{DBLP:conf/itp/Nipkow16} and
+an idea proposed in \parencite{DBLP:conf/itp/Nipkow16} and similar lemmas
 are used for the correctness proofs of insert and delete alike.
 
 \begin{lemma}
@@ -537,12 +538,12 @@ It follows directly from the requirements on the split function.
 If $rs$ is empty, we can follow that the element has to reside in the inorder
 of the last tree of the node.
 When used in the inductive proof of \autoref{thm:isin-set}, we can then deduce that this is
-equal to $\isinfun t\ x$, the branch taken in the isin function for an empty right split result.
+equal to $\isinfun t\ x$, the branch taken in the isin-function (see \autoref{lst:isin-fun}) for an empty right split result.
 If $rs$ is not empty, we need an additional lemma.
 
 \begin{lemma}
     $\sorted (\inorder t) \wedge \splitfun ts\ x = (ls, (sub,sep)\#rs) \wedge sep \neq x \Longrightarrow$ \\
-    $x \in (\setfun (\inorder (sub,sep)\#rs @ \inorder t)) = (x \in \setfun (\inorder sub))$
+    $x \in (\setfun (\inorder ((sub,sep)\#rs) @ \inorder t)) = (x \in \setfun (\inorder sub))$
 \end{lemma}
 
 With this lemma we know that the first subtree on the right part of the split
@@ -556,14 +557,110 @@ This fact follows directly due to the persistence of functional data structures.
 Hence, no proof of preserved invariant is required.
 
 However this is not true for the \textit{insertion} function.
-There is much consensus in the literature on how to conduct insertion into a B-Tree
+There is much consensus in the literature on how to conduct insertion into a B-Tree.
 %TODO citations
+There are not many provably correct functional implementations to our knowledge.
+However there is a relationship between 234-Trees and B-Trees,
+due to which the approach to the functional definition is inspired by the implementation
+in \parencite{DBLP:conf/itp/Nipkow16}.
+In that work, a correct implementation of the Set interface for 234-Trees 
+are provided.
+
+%TODO relationship to other implementations (are there more?)
 Generally, an element is inserted into leaf nodes.
-In case that there is enough space, the node is simply placed at the correct
+In case that there is enough space left, the element is simply placed at the correct
 position in the list of separators.
 However if the node has more than $2k$ elements after this insertion,
 we need to split it and, passing the median to the parent node,
 recurse back upwards.
+
+The implementation of the insertion function is documented in \autoref{lst:ins-fun}.
+To modularize insertion, the check for the overflow of a nodes list has been
+extracted to a function $node_i$.
+The function returns data in a new datatype called $up_i$, which
+carries either a singleton valid B-Tree or two trees and a separator
+that could correctly be part of a node when placed next to each other.
+This construction appears the same way in \parencite{DBLP:conf/itp/Nipkow16}.
+
+The $ins$ function is a recursive helper function,
+that recurses down into the correct leaf node for inserting the desired element,
+and, on the way up, inserts potentially newly obtained subtrees into the
+current nodes list with the help of $node_i$.
+The $ins$ function also makes use of the new datatype $up_i$ to indicate whether
+the current node had an overflow or not.
+
+Finally, the $insert$ function calls the $ins$ helper function
+and transforms the result into a valid B-Tree.
+
+\begin{figure}
+    
+\begin{lstlisting}[mathescape=true, language=Isabelle, label=lst:ins-fun, caption={
+    The \textit{insert} function
+}]
+datatype 'b up$_i$ = T$_i$ 'b btree | Up$_i$ 'b btree 'b 'b btree
+
+fun split_half where
+  split_half xs = (take (length xs div 2) xs, drop (length xs div 2) xs)
+
+fun node$_i$:: nat $\Rightarrow$ ('a btree $\times$ 'a) list $\Rightarrow$ 'a btree $\Rightarrow$ 'a up$_i$ where
+  node$_i$ k ts t = (
+  if length ts $\le$ 2*k then T$_i$ (Node ts t)
+  else (
+    case split_half ts of (ls, (sub,sep)#rs) $\Rightarrow$
+      Up$_i$ (Node ls sub) sep (Node rs t)
+    )
+  )
+
+fun ins:: nat $\Rightarrow$ 'a $\Rightarrow$ 'a btree $\Rightarrow$ 'a up$_i$ where
+  ins k x Leaf = (Up$_i$ Leaf x Leaf) |
+  ins k x (Node ts t) = (
+  case split ts x of
+    (ls,(sub,sep)#rs) $\Rightarrow$ 
+      (if sep = x then T$_i$ (Node ts t)
+      else
+        (case ins k x sub of 
+          Up$_i$ l a r $\Rightarrow$
+            node$_i$ k (ls @ (l,a)#(r,sep)#rs) t | 
+          T$_i$ a $\Rightarrow$ T$_i$ (Node (ls @ (a,sep) # rs) t))) |
+    (ls, []) $\Rightarrow$
+      (case ins k x t of
+         Up$_i$ l a r $\Rightarrow$
+            node$_i$ k (ls@[(l,a)]) r |
+         T$_i$ a $\Rightarrow$ T$_i$ (Node ls a)
+  )
+)
+
+fun tree$_i$::'a up$_i$ $\Rightarrow$ 'a btree where
+  tree$_i$ (T$_i$ sub) = sub |
+  tree$_i$ (Up$_i$ l a r) = (Node [(l,a)] r)
+
+fun insert::nat $\Rightarrow$ 'a $\Rightarrow$ 'a btree $\Rightarrow$ 'a btree where
+  insert k x t = tree$_i$ (ins k x t)
+\end{lstlisting}
+
+\end{figure}
+%TODO
+
+To fulfil the Set interface requirements,
+we need to show that this function preserves the invariants
+and acts the same as inserting element $x$ into the inorder list of the tree.
+
+Preservation of the order invariant follows directly by induction.
+Balancedness requires as additional lemma that
+the height is invariant under insertion, which follows
+by induction using the associativity and commutativity of the maximum function.
+Technically, height preservation is only required when modifying balanced
+trees, however we have shown that this is even the case for non-balanced trees
+as this fact is slightly more general.
+
+Note that for the above proofs, a separate notion of height, balancedness and order
+was introduced for the $up_i$ datatype, which is exactly
+the original notion applied to the B-Tree obtained by applying the $tree_i$ function.
+Exceptions are the notion of order and height, which are expressed only with respect to
+the subtrees.
+The reason is to make these properties invariant with respect to applying the $node_i$
+function to list and last tree,
+which will simplify proofs later using this abstraction.
 
 prove everything based on abstract definition -> locale % TODO add to isabelle intro
 
@@ -593,5 +690,7 @@ but due to abstraction of functionality may use binary split as well.
 Description of applying the refinement framework to the insert function
 
 \chapter{Conclusions}
+
+% comparison standard approach and list approach
 
 \dots

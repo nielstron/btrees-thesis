@@ -177,10 +177,10 @@ As discussed in \autoref{sec:data_structure_defs}, the most useful choice here i
 to allow for at least $k$ and at most $2*k+1$ subtrees.
 Since the last subtree is fixed, this means that the length of list of keys and children
 itself has to be between $k$ and $2*k$.
-Note that we also need a special property for the root of the tree,
+Note that we also need a special property $order^r$ for the root of the tree,
 which has between one and $2*k$ elements.
 In mathematical equations, we will denote "order $k$ $t$" as "$\order_k t$"
-for convenience (likewise for "root\_order $k$ $t$"), which is to be read as
+for convenience (likewise for "order$^r$ $k$ $t$"), which is to be read as
 "Tree $t$ is of order $k$".
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
@@ -194,9 +194,9 @@ fun order :: nat $\Rightarrow$ 'a btree $\Rightarrow$ bool where
     order k t
   )
 
-fun root_order where
-  root_order k Leaf = True |
-  root_order k (Node ts t) = (
+fun order$^r$ where
+  order$^r$ k Leaf = True |
+  order$^r$ k (Node ts t) = (
   (length ts $>$ 0) $\wedge$
   (length ts $\le$ 2*k) $\wedge$
   ($\forall$s $\in$ set (subtrees ts). order k s) $\wedge$
@@ -402,8 +402,6 @@ and the proof that they maintain the invariants.
 
 \subsection{The split-Function}
 % Description of the implementation of the set interface.
-% TODO note that the proof for  sortedness has been reduced from 2000 lines
-% by the sorted (inorder ...) notation (and Nipkows auxiliary funs/lemmas)
 
 Naturally the set operations are defined recursively on the nodes of the tree.
 Since each node contains a non-trivial number of elements,
@@ -484,10 +482,13 @@ The abstraction was formulated in a locale.
 Inside the locale we have access to exactly the specified split function,
 without knowing anything about the composition of that function.
 
-\subsection{Implementation of the Set interface}
+\subsection{The $isin$ operation}
 
+%-------------------------------------------------
 The simplest operation required in the Set interface is
 the \textit{isin} function.
+% Note reference to i.e. Bauer retrieval algorithm
+%-------------------------------------------------
 The definition in \autoref{lst:isin-fun} also shows exemplary usage of the split function.
 In case the right part of the split list is non-empty,
 we check the element at that level or recurse in the given subtree.
@@ -527,7 +528,7 @@ an idea proposed in \parencite{DBLP:conf/itp/Nipkow16} and similar lemmas
 are used for the correctness proofs of insert and delete alike.
 
 \begin{lemma}
-    $\sorted (\inorder t) \wedge \splitfun ts\ x = (ls, rs) \Longrightarrow$ \\
+    $\sorted (\inorder (Node\ ts\ t) \wedge \splitfun ts\ x = (ls, rs) \Longrightarrow$ \\
     $x \in (\setfun (\inorder (Node\ ts\ t))) = (x \in \setfun (\inorder rs @ \inorder t))$
 \end{lemma}
 
@@ -542,7 +543,7 @@ equal to $\isinfun t\ x$, the branch taken in the isin-function (see \autoref{ls
 If $rs$ is not empty, we need an additional lemma.
 
 \begin{lemma}
-    $\sorted (\inorder t) \wedge \splitfun ts\ x = (ls, (sub,sep)\#rs) \wedge sep \neq x \Longrightarrow$ \\
+    $\sorted (\inorder (Node\ ts\ t)) \wedge \splitfun ts\ x = (ls, (sub,sep)\#rs) \wedge sep \neq x \Longrightarrow$ \\
     $x \in (\setfun (\inorder ((sub,sep)\#rs) @ \inorder t)) = (x \in \setfun (\inorder sub))$
 \end{lemma}
 
@@ -556,6 +557,10 @@ This operation has no effect on the tree, it only walks through it.
 This fact follows directly due to the persistence of functional data structures.
 Hence, no proof of preserved invariant is required.
 
+\subsection{Insertion}
+
+% TODO move abstract discussion to introduction
+%-------------------------------------------------
 However this is not true for the \textit{insertion} function.
 There is much consensus in the literature on how to conduct insertion into a B-Tree.
 %TODO citations
@@ -573,6 +578,7 @@ position in the list of separators.
 However if the node has more than $2k$ elements after this insertion,
 we need to split it and, passing the median to the parent node,
 recurse back upwards.
+%-------------------------------------------------
 
 The implementation of the insertion function is documented in \autoref{lst:ins-fun}.
 To modularize insertion, the check for the overflow of a nodes list has been
@@ -646,23 +652,117 @@ we need to show that this function preserves the invariants
 and acts the same as inserting element $x$ into the inorder list of the tree.
 
 Preservation of the order invariant follows directly by induction.
-Balancedness requires as additional lemma that
-the height is invariant under insertion, which follows
-by induction using the associativity and commutativity of the maximum function.
-Technically, height preservation is only required when modifying balanced
-trees, however we have shown that this is even the case for non-balanced trees
-as this fact is slightly more general.
 
 Note that for the above proofs, a separate notion of height, balancedness and order
-was introduced for the $up_i$ datatype, which is exactly
-the original notion applied to the B-Tree obtained by applying the $tree_i$ function.
-Exceptions are the notion of order and height, which are expressed only with respect to
-the subtrees.
-The reason is to make these properties invariant with respect to applying the $node_i$
-function to list and last tree,
-which will simplify proofs later using this abstraction.
+was introduced for the $up_i$ datatype.
+Height and balancedness are
+defined such that the property is invariant to splitting and merging of nodes.
+For example, $\height ts\ t = \heightup_i (\node_i k\ ts\ t)$.
+Note that this is not the same as applying the original functions
+to the tree obtained by tree$_i$.
+Order of up$_i$ elements however simply subsumes that all subtrees have
+the given order.
+Naturally, making a one-element tree of an up$_i$ element will thus
+give a node of root-order, while inserting the elements
+will not violate the recursive order requirement.
 
-prove everything based on abstract definition -> locale % TODO add to isabelle intro
+Proving the balancedness invariant requires as additional lemma that
+the height is invariant too under insertion.
+This again follows by induction using the
+associativity and commutativity of the maximum function.
+Technically, height preservation is only required when modifying balanced
+trees, however we have shown the stronger statement that this is even the case for non-balanced trees.
+
+The order invariant follows quite directly by induction.
+However, we make use of the following lemma to simplify the proof:
+
+\begin{lemma}
+    If all children have order $k$ and $\length ts \ge k$ and $\length ts \le 4k+1$
+    then all trees in $\node_i k\ ts\ t$ have order $k$.
+\end{lemma}
+
+Even though in the case of insertion the length of the list
+never exceeds $2k+1$, the statement holds up to $4k+1$.
+This is useful to prove here as the argument hardly changes
+but this fact can now be used for merging nodes in the deletion function as well.
+
+So far, we obtained preservation of the invariants
+\begin{theorem}
+    $\order_k t \wedge \bal t \Longrightarrow
+    \order_k (\insertfun_k x\ t) \wedge \bal (\insertfun_k x t)$
+\end{theorem}
+
+The set interface further requires the following fact.
+\begin{theorem}
+    $\order_k t \wedge \bal t \wedge \sorted  (\inorder t)\Longrightarrow
+    \inorder (\insertfun_k x\ t) = \insertfun_{list} x\ (\inorder t)$
+\end{theorem}
+
+Looking at the ins function in \autoref{lst:ins-fun},
+we see that in an inductive proof the main obligation
+is to argue for the choice of the subtree in case of recursion.
+Similar to the proof of \autoref{thm:isin-set},
+we use two auxiliary lemmas, that turn the remaining
+proof in simple case distinctions and chains of equations.
+
+\begin{lemma}
+    $\sorted(\inorder (Node\ ts\ t)) \wedge \splitfun ts\ x = (ls, rs) \Longrightarrow$ \\
+    $\inslist (\inorder (Node\ ts\ t))) = \inorder ls @ \inslist x (\inorder rs @ \inorder t)$
+\end{lemma}
+
+\begin{lemma}
+    $\sorted (\inorder (Node\ ts\ t)) \wedge \splitfun ts\ x = (ls, (sub,sep)\#rs) \wedge sep \neq x \Longrightarrow$ \\
+    $\inslist (\inorder ((sub,sep)\#rs) @ \inorder t)) = \inslist x\ (\inorder sub) @ sep \# \inorder rs @ \inorder t$
+\end{lemma}
+
+The only case not covered by the above lemmas is the case $sep = x$.
+In that case, the tree does not change.
+This is due to the fact that $x$ is already in the set represented by the tree
+and hence does not need to be inserted.
+The same happens when inserting $x$ into a list that already contains $x$
+(i.e. the inorder of the tree),
+which follows simply by induction on the list.
+
+\begin{lemma}
+    $\sorted xs \wedge x \in \setfun xs \Longrightarrow \inslist x\ xs = xs$
+\end{lemma}
+
+\subsection{Deletion}
+
+% TODO delete
+% TODO move abstract discussion to introduction
+%-------------------------------------------------
+Generally, elements are removed from the leaves only.
+If the element to be deleted resides in an inner node,
+it is replaced by the maximal lesser or minimal greater
+element in the tree, which always resides in a leaf.
+
+After deletion, the nodes may need rebalancing in order
+to ensure the order property.
+A node having less than $k$ elements is called to have "underflow".
+However, opposing to the insertion function,
+the exact procedure to handle underflow varies strongly in the literature.
+In most of the popular modern references, %TODO citations
+the primary remedy to underflow is a "steal"
+from the left or right sibling.\parencite{DBLP:books/daglib/0023376}
+If the left or right sibling has more than $k$ elements,
+one of the neighboring elements may be moved out for increasing
+the size of the current node.
+Only in case that both siblings have left only $k$ elements,
+a kind of reversal of the insertion split is conducted:
+One of the siblings and the node itself are merged to form
+a new, bigger node of valid order.
+
+Following the description of \parencite{DBLP:journals/acta/BayerM72},
+as done by \parencite{Fielding80},
+the two cases can be treated identically.
+If a node has less than $k$ elements,
+merge it \textit{unconditionally} with one of its siblings.
+% TODO note that someone(tm) said this is more efficient then stealing
+If the resulting list has more than $2k$ elements,
+treat it the same as if an overflow due to insertion occurred.
+For simplicity of the function and proofs, we will always
+merge with the right sibling.
 
 
 \chapter{Imperative B-Trees in Isabelle}
@@ -691,6 +791,19 @@ Description of applying the refinement framework to the insert function
 
 \chapter{Conclusions}
 
+% TODO note that the proof for  sortedness has been reduced from 2000 lines
+% by the sorted (inorder ...) notation (and Nipkows auxiliary funs/lemmas)
 % comparison standard approach and list approach
+\begin{figure}
+    \begin{tabular}{l|c|c}
+        \                & Standard Set interface & Inorder Set interface \\
+        \hline
+        auxiliary lemmas & 500                    & 100                   \\
+        set/sorted and inorder proofs & 2000      & \dots                 \\
+    \end{tabular}
+    \caption{Comparison of Lines of Code (loc) for proving implementation
+    of the Set interface by either the standard approach or the inorder approach}
+    \label{fig:proof-standard-inorder}
+\end{figure}
 
 \dots

@@ -820,28 +820,27 @@ fun rebalance_last_tree where
 \end{lstlisting}
 \end{figure}
 
-This process, implemented as in \autoref{lst:rebalance-def},
-is called "rebalancing" in this work and comprises
-merging and splitting neighboring nodes.
+The described procedures are implemented here with a
+certain flavor due to the setup of B-Trees.
+The "rebalancing" as implemented in \autoref{lst:rebalance-def}
+comprises merging and splitting neighboring nodes.
 For simplicity of the function and proofs, we always
 merge with the right sibling.
 The only exception, which is unavoidable due to the asymmetry of the data structure,
 is an underflow in the last tree.
 It will be merged with the second-to-last tree.
 
-The reason these functions preserve the sortedness and set properties
-is plain when considering the inorder view of the tree:
-it does not change at all.
-Since the function does not even employ recursive calls,
-this property even follows automatically.
+The other detail is regarding the split\_max function
+defined in \autoref{lst:del-def}.
+Since the last tree of the node is explicitly stored in each Node
+and the left subtree of a separator lies within the same
+pair inside the node list, it is significantly
+easier to obtain the maximum of the left subtree
+than the minimum of the right subtree.
+Therefore we will always swap inner separators with the former element.
+%---------------------------------------------------------
 
-\begin{lemma}
-    \label{lem:rebalance-inorder}
-    All subtrees have the same height $\Longrightarrow$ \\
-    $\inorder (\rebalancemt_k ls\ sub\ sep\ rs\ t) = \inorder (Node (ls@(sub,sep)\#rs)\ t)$
-\end{lemma}
-
-Another important property is the order property,
+The most interesting property for the rebalancing operations is the order property,
 which is meant to be restored after potential underflows.
 It is important to note here that we cannot guarantee
 that at least one element remains in the node.
@@ -855,14 +854,14 @@ This state is denoted as $\order^a_k$.
     $\order^a_k (\rebalancemt_k ls\ sub\ sep\ sep\ rs\ t)$
 \end{lemma}
 
-For this proof, we can re-use \autoref{lem:nodei-order},
-as two full merged nodes would result in exactly the allowed
-upper bound of $4k+1$ elements.
-The case that the subtree and separator list becomes zero,
-is exactly when a root with minimal size underflows,
-after which operation the tree shrinks in height.
-The new tree is then exactly the only remaining subtree of the original node.
-See the operation $reduce\_node$ in \autoref{lst:del-def} on the exact implementation
+For this proof, we re-use \autoref{lem:nodei-order},
+as two nodes of order $k$ will always contain
+a maximum of $4k+1$ separators.
+The case that the subtree and separator list becomes zero
+is exactly when a root with minimal size underflows.
+After this operation the tree shrinks in height.
+The shrinked tree then is exactly the one remaining subtree in the original node.
+See the operation $reduce\_node$ in \autoref{lst:del-def} for the exact implementation
 of this step.
 
 \begin{figure}
@@ -905,9 +904,12 @@ fun delete where delete k x t = reduce_root (del k x t)
 
 From this fact follows further, that for the results of all intermediate functions
 in the deletion process, $\order^a k$ of the results can be guaranteed.
-Since the last tree has $order k$, the result of $reduce\_node$ always has at least $\order^r k$.
+Since the last subtree in the result of deletion has $\order k$,
+and for more than one subtree the node has root order,
+the result of $\deletefun$ always has at least $\order^r k$.
 
-The balancedness invariance follows again by first showing height invariance
+The balancedness invariance follows similarly to
+insertion by first showing height invariance % TODO reference
 using the associativity and commutativity of the maximum operation.
 Its proofs are interleaved with the other proofs,
 since the intermediate functions, especially
@@ -960,10 +962,28 @@ and induct over the execution of the del-function.
 
 Rather than stating the specialized lemmas again at this point, we would like to point
 out the elegance of the inorder method at this point.
-Considering the function split\_max, rather than showing
+
+The reason the rebalancing functions preserve the sortedness and set properties
+is plain when considering the inorder view of the tree:
+it does not change at all.
+A manual proof about the set and sortedness properties
+would require complicated, unnecessarily lengthy proofs.
+For the inorder view, 
+since the results can be easily simplified, even without recursive calls,
+the property follows automatically.
+
+\begin{lemma}
+    \label{lem:rebalance-inorder}
+    All subtrees have the same height $\Longrightarrow$ \\
+    $\inorder (\rebalancemt_k ls\ sub\ sep\ rs\ t) = \inorder (Node (ls@(sub,sep)\#rs)\ t)$
+\end{lemma}
+
+Considering the function split\_max,
+the standard approach would require showing
 tideously that the element returned is in fact the maximum of the whole tree
 and showing that the remaining tree union the maximum element
-gives the whole original tree set, we simply show the following,
+gives the whole original tree set.
+Instead we simply show the following,
 comprising both facts:
 
 \begin{lemma}
@@ -972,14 +992,17 @@ comprising both facts:
     $\inorder (\splitmax_k t) = \inorder t$
 \end{lemma}
 
-This, together with the fact that the remaining tree is balanced and
-fulfils a certain order property, is exactly
-the intention behind the split\_max function.
+This fact follows easily by induction on the computation of split\_max,
+using \autoref{lem:rebalance-inorder}.
+
+The reason that the proof of these functions follows so easily
+lies in the intention behind the definition of both functions.
+Together with the fact that the remaining tree is balanced and
+fulfils a certain order property, the inorder view
+is not meant to change.
 We obtain the same elements, in the same order,
 just now in a configuration from which we can obtain
 a new, valid, B-Tree.
-This fact follows easily by induction on the computation of split\_max,
-using \autoref{lem:rebalance-inorder}.
 
 Finally we obtain the last important property of the set interface.
 \begin{theorem}

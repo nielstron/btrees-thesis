@@ -836,6 +836,7 @@ Since the function does not even employ recursive calls,
 this property even follows automatically.
 
 \begin{lemma}
+    \label{lem:rebalance-inorder}
     All subtrees have the same height $\Longrightarrow$ \\
     $\inorder (\rebalancemt_k ls\ sub\ sep\ rs\ t) = \inorder (Node (ls@(sub,sep)\#rs)\ t)$
 \end{lemma}
@@ -849,8 +850,8 @@ and that there are no more than $2k$ elements in the result.
 This state is denoted as $\order^a_k$.
 
 \begin{lemma}
-    If all subtrees are of order k except for one, which has order$^a$ k,
-    and all subtrees have equal height $\Longrightarrow$ \\
+    If all subtrees are of order k except for sub or t, of which one may have order$^a$ k,
+    and all subtrees have equal height $\Longrightarrow$
     $\order^a_k (\rebalancemt_k ls\ sub\ sep\ sep\ rs\ t)$
 \end{lemma}
 
@@ -917,22 +918,22 @@ to $\order^r k$.
 % TODO this might be conclusion
 The actual proofs in this work have been written to use only
 minimal requirements on the input.
-For example for split\_max, rather than
-requiring balancedness and $\order k$ for $k > 0$
-on the full tree,
-it is only required that the node contains two subtrees
-at the end that have equal height and that the last tree has the same, recursive property.
-Using this property was beneficial inside the proof,
+For example in \autoref{lem:splitmax-inorder}, rather than
+requiring balancedness and $\order k$ for $k > 0$ on the full tree,
+it is only required that the node has at least two children
+and the last two have equal height and that the last tree has the same, recursive property.
+Using the latter property was beneficial during the proof,
 as the less restrictive requirements simplify satisfying
 the preconditions for applying the induction hypothesis.
 However this also called for more lemmas that show that
 the weaker property is satisfied in valid B-Trees.
-Nevertheless, generating the most general lemmas usually proved
-very useful, for example \autoref{lem:nodei-order}, yielding the reusability of $\node_i$ for
+Nevertheless, generating the most general lemmas usually turned out to be
+very useful, for example in \autoref{lem:nodei-order}, yielding the reusability of $\node_i$ for
 merging two nodes in deletion.
 Another use case was the applicability of weaker properties
 even when temporary violations
-of the general invariant were observed during deletion.
+of the general invariant were observed during deletion,
+such as in the $del$ function in \autoref{lst:del-def}.
 %---------------------------------
 
 Putting together the proofs on balancedness and
@@ -966,10 +967,19 @@ gives the whole original tree set, we simply show the following,
 comprising both facts:
 
 \begin{lemma}
-    If the t is nonempty with to equally high last trees,
-    and t is not a leaf $\Longrightarrow$ \\
+    \label{lem:splitmax-inorder}
+    If t has more than two subtrees, and the last two are equally high, then
     $\inorder (\splitmax_k t) = \inorder t$
 \end{lemma}
+
+This, together with the fact that the remaining tree is balanced and
+fulfils a certain order property, is exactly
+the intention behind the split\_max function.
+We obtain the same elements, in the same order,
+just now in a configuration from which we can obtain
+a new, valid, B-Tree.
+This fact follows easily by induction on the computation of split\_max,
+using \autoref{lem:rebalance-inorder}.
 
 Finally we obtain the last important property of the set interface.
 \begin{theorem}
@@ -977,6 +987,10 @@ Finally we obtain the last important property of the set interface.
     \inorder (\deletefun_k x\ t) = \deletefun_{list} x\ (\inorder t)$
 \end{theorem}
 
+With this, the implementation the set interface by
+our implementation of B-Trees is proven correct.
+The next step towards imperative B-Trees is to implement
+an imperative refinement of the set operations.
 
 \chapter{Imperative B-Trees in Isabelle}
 

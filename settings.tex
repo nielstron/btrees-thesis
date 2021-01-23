@@ -71,9 +71,14 @@
 \newtheorem{lemma}[theorem]{Lemma}
 
 \usepackage{amsmath}
+\let\div\relax
+\DeclareMathOperator{\div}{div}
+
 \DeclareMathOperator{\nodes}{nodes}
 \DeclareMathOperator{\height}{height}
 \DeclareMathOperator{\length}{length}
+\DeclareMathOperator{\drop}{drop}
+\DeclareMathOperator{\take}{take}
 \DeclareMathOperator{\bal}{bal}
 \DeclareMathOperator{\order}{order}
 \DeclareMathOperator{\sorted}{sorted}
@@ -99,8 +104,10 @@
 \DeclareMathOperator{\dellist}{del_{list}}
 \DeclareMathOperator{\deletefun}{delete}
 \DeclareMathOperator{\setfun}{set}
-\let\div\relax
-\DeclareMathOperator{\div}{div}
+
+\DeclareMathOperator{\pfarraycap}{is\_pfa}
+\DeclareMathOperator{\pfadrop}{pfa\_drop}
+\DeclareMathOperator{\pfashrink}{pfa\_shrink}
 
 \DeclareMathOperator{\rebalancemt}{rebalance\_middle\_tree}
 % TODO add all functions here
@@ -114,5 +121,7 @@
     insert,%
     tree,%
     node,%
+    length,%
+    take,%
 },emphstyle={\upshape}
 }

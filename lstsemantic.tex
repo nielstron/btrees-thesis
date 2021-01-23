@@ -28,8 +28,7 @@
 \definecolor{IsabelleTypeColor}{HTML}{9f2ae5}
 % Strings usually have this background color
 % however listings has currently not support for selected background coloring
-%\definecolor{IsabelleStringBackground}{HTML}{f3f3f3}
-\definecolor{IsabelleStringBackground}{HTML}{000000}
+\definecolor{IsabelleStringBackground}{HTML}{535353}
 \definecolor{IsabelleKeywordColor}{HTML}{2f769e}
 \lstdefinelanguage{Isabelle}[]{ML}%
 {morekeywords={%
@@ -51,15 +50,17 @@ qed,%
 show,%
 shows,%
 theorem,%
+typedef,%
 try,%
 unfolding,%
 using,%
 where,%
 },
 % modyfied to display highlighting inside strings
-morestring=**[d][\color{IsabelleStringBackground}]{"},
+%morestring=**[d][\color{IsabelleStringBackground}]{"},
 % and highlight type prefixes (')
 %moredelim=[s][\color{IsabelleTypeColor}]{'}{\ },
+moredelim=[s][\color{IsabelleStringBackground}]{(*}{*)},
 basicstyle=\itshape,%
 keywordstyle=\upshape\bfseries,%\color{IsabelleKeywordColor},%
 columns=fullflexible,%

@@ -1057,6 +1057,7 @@ the same way as the abstract operations on the abstract version.
 % abstract idea: implementation that has same effect on concrete ds
 % as abstract function on abstract ds
 % TODO short intro hoare triples and notation here
+% *  and \uparrow
 Short Description of Peters Refinement framework regarding our implementation
 
 \subsection{Refinement of abstract lists}
@@ -1205,7 +1206,7 @@ memory allocations was chosen.\footnote{
 \begin{lemma}
     $k \le \length s \wedge (\length s - k) \le dn \Longrightarrow$ \\
     \begin{center}
-    $\langle \pfarraycap$ sn s si * $\pfarraycap$ dn d di $\rangle$
+    $\langle \pfarraycap$ sn s si * $\pfarraycap$ dn d di $\rangle$ \\
     $\pfadrop$ si k di \\
     $\langle\lambda di'. \pfarraycap$ sn s si * $\pfarraycap$ dn ($\drop$ k s) di' $\rangle$
     \end{center}
@@ -1243,6 +1244,58 @@ The only missing piece is an imperative split function.
 
 \section{Set-Operations}
 
+With refinements for all basic components in the B-Tree set operations,
+the B-Tree datatype itself can be refined.
+Rather than actually storing nodes within lists,
+the B-Tree nodes are supposed to be stored in the heap,
+only storing pointers to other nodes in the element list.
+Since the Imperative Refinement Framework does not support null pointers,
+we store heap reference options instead.
+Thus None represents leafs or empty trees.
+The physical B-Tree datatype does hence only need to cover the case
+of actually being an inner node.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+datatype 'a btnode =
+    Btnode ('a btnode ref option*'a) pfarray 'a btnode ref option
+\end{lstlisting}
+
+Note the similarity to \autoref{lst:btree-def},
+only that "btree" was replaced by "btnode ref option"
+and "list" was replaced by "pfarray".
+
+An abstract B-Tree is represented by such a physical node
+if all references on subtrees represent the corresponding
+abstract subtrees and all keys are the same.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+fun btree_assn :: nat $\Rightarrow$ 'a::heap btree $\Rightarrow$ 'a btnode ref option $\Rightarrow$ assn where
+  btree_assn k Leaf None = emp |
+  btree_assn k (Node ts t) (Some a) = 
+ ($\exists_A$ tsi ti tsi'.
+      a $\mapsto_r$ Btnode tsi ti
+    * btree_assn k t ti
+    * is_pfa (2*k) tsi' tsi
+    * list_assn ((btree_assn k) $\times_a$ id_assn) ts tsi'
+    ) |
+  btree_assn _ _ _ = false
+\end{lstlisting}
+
+It seems a little bit awkward that the definition
+includes two relationships regarding only the list of elements in the subtree.
+The reason is that there are two steps of refinements going on.
+First all elements in a list are refined to their physical counterpart.
+This fact is expressed by the list assumption term in the assumption.
+Second, the list itself is refined to an array.
+This is expressed in the term about the partially filled array relationship.
+Since the list assumption makes recursive use of the
+B-Tree assumption, this is however a very convenient
+way of expressing the desired relationship.
+
+Using the parameters of \texttt{is\_pfa},
+note that we can specify that every node of a B-Tree should have
+capacity for $2k$ elements.
+
 \subsection{The split function}
 
 To implement any set operations we again need a split operation.
@@ -1264,12 +1317,168 @@ A very useful alternative statement of the relationship follows automatically.
     $\splitrelation as\ (ls,rs)\ i = (as = ls@rs \wedge i = \length ls)$
 \end{lemma}
 
-From this, we can characterize the desired imperative
-split function by its Hoare-Triple.
+From this, we characterize the desired imperative
+split function \texttt{imp\_split} by its Hoare-Triple.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+$\langle$ is_pfa c tsi a * list_assn (btree_assn k $\times_a$ id_assn) ts tsi * true $\rangle$
+imp_split a
+$\langle\lambda$ i. is_pfa c tsi a * list_assn (btree_assn k $\times_a$ id_assn) ts tsi
+  * $\uparrow$(split_relation ts (split ts p) i)$\rangle_t$
+\end{lstlisting}
+
+Just as with the abstract implementation,
+the imperative refinements can be built with this characterization alone.
+However this time we are actually interested in finding an
+efficient split and will spend some time finding
+a good split function.
+%TODO move to after the set operations?
+
+In the imperative context, we prefer not to directly
+implement the recursive function from \autoref{fig:linear_split}
+but we embark on the exercise of using a while loop.
+The implementation in \autoref{lst:imp-linear-split}
+is very basic but good for getting to know
+the usage of while loops in imperative HOL.
+Every iteration, an index on the array is moved forward by one.
+The main part is done in the loop head - if we
+are within the array bounds,
+we obtain the current separator and check if it is
+smaller than the partitioning element.
+We return the first index, at which the separator is greater or equal.
+
+\begin{figure}
+\begin{lstlisting}[mathescape=true, language=Isabelle, caption={The imperative linear split},
+    label={lst:imp-linear-split}]
+definition lin_split :: ('a::heap $\times$ 'b::{heap,linorder}) pfarray $\Rightarrow$ 'b $\Rightarrow$ nat Heap where
+    lin_split $\equiv$ $\lambda$ (a,n) p. do { 
+   
+        i $\leftarrow$ while  
+            ($\lambda$i. if i<n then do { 
+            (_,s) $\leftarrow$ Array.nth a i; 
+            return (s<p) 
+            } else return False)  
+            ($\lambda$i. return (i+1))  
+            0; 
+                
+        return i 
+    }
+\end{lstlisting}
+\end{figure}
+
+This function behaves quite different to the abstract linear split
+that was implemented before.
+Therefore, proving that it refines the abstract function requires a small detour.
+We first express and show the most basic, non-trivial result of the function.
+With the help of that we may then show that the result is the same as the result
+of applying the abstract function.
+
+We begin with stating a simple matching Hoare Triple
+for the function.
+It follows by supplying the loop invariant,
+which is that all elements up to the current $i$
+are smaller than the partitioning element.
+Further the invariant contains the fact that the array stays unchanged.
+% TODO state loop invariant explicitely
+
+\begin{lemma}
+    \begin{center}
+        $\langle$is\_pfa c xs (a,n) * true $\rangle$ \\
+        lin\_split (a,n) p \\
+        $\langle \lambda$i.
+        is\_pfa c xs (a,n) 
+        * $\uparrow$(i $\leq$ n 
+            $\wedge$ ($\forall$j < i. snd (xs!j) < p) 
+            $\wedge$ (i<n $\longrightarrow$ snd (xs!i) $\geq$ p)) $\rangle_t$ 
+    \end{center}
+\end{lemma}
+
+For unexciting reasons, this post condition
+actually suffices to imply that there exists a split relation
+to the result of an abstract split function.
+Specifically, we use the abstract split function from
+\autoref{fig:linear_split}. %TODO or explain why a different function was used
+This is great to know since the previous lemma
+follows directly from the computation and is closely related
+to the loop invariant.\footnote{
+    Another reason for excitement is that now we can specify an imperative B-Tree
+    specification without any reference to the abstraction.
+    We simply always use the well known split function in the abstraction
+    and only require a post condition similar to the one just shown
+    on the imperative split function.
+}
+With this assurance we approach the binary split.
+
+The binary split in \autoref{lst:imp-binary-split} conducts a binary search on
+the list of elements.
+Rather than walking through the array,
+it narrows down a windows on the array that becomes smaller with
+every iteration.
+In the final iteration,
+the windows must have narrowed down to a single element,
+which is the result.
+
+\begin{figure}
+\begin{lstlisting}[mathescape=true, language=Isabelle, caption={The imperative binary split},
+    label={lst:imp-binary-split}]
+    definition bin_split :: ('a::heap $\times$ 'b::{heap,linorder}) pfarray $\Rightarrow$ 'b $\Rightarrow$ nat Heap 
+    where 
+      bin_split $\equiv$ $\lambda$(a,n) p. do { 
+    (low',high') $\leftarrow$ heap_WHILET  
+      ($\lambda$(low,high). return (low < high))  
+      ($\lambda$(low,high). let mid = ((low  + high) div 2) in 
+       do { 
+        (_,s) $\leftarrow$ Array.nth a mid; 
+        if p < s then 
+           return (low, mid) 
+        else if p > s then 
+           return (mid+1, high) 
+        else return (mid,mid) 
+       })  
+      (0::nat,n); 
+    return low' 
+  }
+\end{lstlisting}
+\end{figure}
+
+A detailed analysis of binary search algorithms
+may be found in \parencite{DBLP:journals/csedu/Montague91},
+which has served as an orientation for the derived algorithm.
+Since the introduction of products as list elements
+adds another layer of complexity for the simplifier.
+Therefore a binary split algorithm on lists that contain
+only single elements has been derived first.
+Surprisingly, obtaining the same Hoare Triple
+as for the linear split requires merely
+a slightly more complex loop invariant
+invocation of a number of algebraic lemmas.
+% TODO note/explain loop invariant?
+The additional requirement here is naturally
+that the list of separators must be sorted.
+
+\begin{lemma} $\sorted (\separators xs) \Longrightarrow$ \\
+    \begin{center}
+        $\langle$is\_pfa c xs (a,n) * true $\rangle$ \\
+        bin\_split (a,n) p \\
+        $\langle \lambda$i.
+        is\_pfa c xs (a,n) 
+        * $\uparrow$(i $\leq$ n 
+            $\wedge$ ($\forall$j < i. snd (xs!j) < p) 
+            $\wedge$ (i<n $\longrightarrow$ snd (xs!i) $\geq$ p)) $\rangle_t$ 
+    \end{center}
+\end{lemma}
+
+Since we know that this implies equivalence to the abstract split function
+and sortedness of the separators is guaranteed by the sortedness
+invariant of the B-Trees,
+we can safely use this function for specifying
+the set operations.
 
 %TODO Note the choice of a while-loop for efficiency
 %TODO The split function can be implemented linearly (easier, proof of concept)
 % but due to abstraction of functionality may use binary split as well.
+
+\subsection{The isin function}
 
 \subsection{Insertion}
 

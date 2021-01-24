@@ -1090,18 +1090,21 @@ that keeps count of currently inserted elements,
 but does neither grow nor shrink.
 Abstractly, we refine lists in the functional B-Trees to this
 data-structure.
-A list $a$ is represented by a partially filled array,
-if the array represents a list, of which the first $length a$
-elements are equal to $a$.
+A list $l$ is represented by a partially filled array $(a,n)$,
+if the array $a$ represents a list $l'$, of which the first $n$
+elements form list $l$.
 Formally,
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 
 typedef 'a pfarray = 'a array $\times$ nat
 
-definition is_pfa where c l $\equiv$ $\lambda$(a,n). $\exists_A$ l'. a $\mapsto_a$ l' *  $\uparrow$(c = length l' $\wedge$ n $\le$ c $\wedge$ l = (take n l'))"
+definition is_pfa where c l $\equiv$
+    $\lambda$(a,n). $\exists_A$ l'. a $\mapsto_a$ l' *  $\uparrow$(c = length l' $\wedge$ n $\le$ c $\wedge$ l = (take n l'))
 \end{lstlisting}
 
+where $c$ is the $capacity$ of the array, that is the actual allocated size
+of the array on the heap.
 From the abstract specification alone
 it is not clear which operations are supposed to be conducted
 in-place and which will require copying data.
@@ -1159,7 +1162,7 @@ definition pfa_insert_grow  $\equiv$ $\lambda$(a,n) i x. do {
 During the splitting of nodes, a part of the overflowing
 list is copied into another array.
 The operation to copy data is based on the function $blit$,
-that copies a slice of an array to the slice of another array.
+that copies a slice of an array to the starting position of another array.
 The function already existed in the standard collection and could be reused
 to define the $pfa\_drop$ function in \autoref{lst:pfarray-def}, which in this implementation copies data to a new array.
 
@@ -1167,7 +1170,10 @@ The $blit$ function is however not capable of correctly copying data
 within the array, as required for efficient in-place insertion and deletion.
 A suitable function, called $sblit$, was hence added in the course of this project.
 The relevant addition is to differentiate between copying elements
-to lower indices or to higher indices.
+from higher to lower indices or from lower to higher indices.
+Depending on the direction of the copy, it is relevant
+in which order to copy singleton elements so that in case
+of overlapping ranges no elements are overwritten before being copied.
 By adding a function that copies elements in reverse order
 and conditionally calling either copy function,
 loss-free in-place copying was achieved.
@@ -1184,14 +1190,17 @@ The element to be inserted is then placed in the remaining free spot.
 
 For all functions in \autoref{lst:pfarray-def},
 appropriate Hoare-Triples were derived.
-Most triples are straightforward to derive which is why they are not
+All triples are straightforward to derive which is why they are not
 listed listed in great detail.
 To roughly sketch the obtained lemmas, the two examples
 \texttt{pfa\_drop} and \texttt{pfa\_shrink} are investigated below.
 The most important difference is whether
-the operations are destructive, or in-place, or not.
+the operations are destructive (in-place) or not.
 For most operations, the approach that required the least
-memory allocations was chosen.
+memory allocations was chosen.\footnote{
+    The only exception is node$_i$, which in the case of overflow
+    currently requires temporary allocation of an array that holds more than $2k$ elements.
+}
 
 \begin{lemma}
     $k \le \length s \wedge (\length s - k) \le dn \Longrightarrow$ \\
@@ -1206,14 +1215,15 @@ The array $si$ stays untouched.
 This fact is expressed by the fact that the term about its relationship to $s$
 is still available in the postcondition of the triple.
 The only thing that changed is the content of $di$.\footnote{
-    In the actual proof, we even show that the array itself has not changed
-    (i.e. has not been reallocated) if this is possible.
-    The notation does however not yield high readability and is hence approximated
-    here.
+    In the actual proof, where possible, we even show that the array itself has not changed
+    (i.e. has not been reallocated).
+    The correct notation does however not yield high readability
+    and is hence abstracted here.
 }
-The $take$ function was refined differently,
-as the cheapest and in our context consistent option is to simply reduce the number of
-elements that are considered part of the represented list.
+The $take$ function was refined differently.
+The cheapest and in our context consistent option is
+reducing the number of elements that are considered part of the represented list
+from $n$ to $k$.
 The result is that the original array gets modified and we loose any information
 about the content that is written beyond given $k$.
 
@@ -1234,6 +1244,28 @@ The only missing piece is an imperative split function.
 \section{Set-Operations}
 
 \subsection{The split function}
+
+To implement any set operations we again need a split operation.
+However, what split function exactly will be used can be abstracted again.
+The only important thing is that it refines an abstract split function.
+Imperative split functions should be efficient and as such not actually
+split an array in half and return it the way the abstract function did.
+Rather than that the function should return the index of the subtree
+in which should be recursed.
+The refinement condition derived from this relationship is as follows.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+definition split_relation xs $\equiv$ $\lambda$(as,bs) i. i $\le$ length xs $\wedge$ as = take i xs $\wedge$ bs = drop i xs
+\end{lstlisting}
+
+A very useful alternative statement of the relationship follows automatically.
+
+\begin{lemma}
+    $\splitrelation as\ (ls,rs)\ i = (as = ls@rs \wedge i = \length ls)$
+\end{lemma}
+
+From this, we can characterize the desired imperative
+split function by its Hoare-Triple.
 
 %TODO Note the choice of a while-loop for efficiency
 %TODO The split function can be implemented linearly (easier, proof of concept)

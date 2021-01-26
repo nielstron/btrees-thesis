@@ -1171,11 +1171,15 @@ We can then specify Hoare Triples on assertions.
 \end{definition}
 
 A simple example Hoare Triple is 
-$\langle id\_assn\ a\ b \rangle return b \langle \lambda r. id\_assn\ a\ r \rangle$.
+$\langle$ id\_assn $a$ $b$ $\rangle$ return $b$ $\langle \lambda r.$ id\_assn $a$ $r$ $\rangle$.
 In the refinement process, we will use more complex relationship assertions
 on the input $b$ to some object $ab$ and show that the value $r$ returned
 by the imperative program satisfies a relationship to the output of the refined
 function applied to $ab$.
+Further we use the shorthand notation $\langle\ P\ \rangle\ c\ \langle \lambda r.\ Q\ r\ \rangle_t$
+which stands for $\langle\ P\ \rangle\ c\ \langle \lambda r.\ Q\ r\ * true\ \rangle$.
+Since $true$ holds for any heap, this part of the statement may be used to subsume
+all temporary and discarded variables.
 
 Refining all set operations from \autoref{chapter:abs-set}
 yields imperative code

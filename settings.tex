@@ -69,6 +69,7 @@
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{corollary}{Corollary}[theorem]
 \newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{definition}[theorem]{Definition}
 
 \usepackage{amsmath}
 \let\div\relax
@@ -83,6 +84,7 @@
 \DeclareMathOperator{\order}{order}
 \DeclareMathOperator{\sorted}{sorted}
 \DeclareMathOperator{\inorder}{inorder}
+\DeclareMathOperator{\btree}{btree}
 
 \DeclareMathOperator{\separators}{separators}
 \DeclareMathOperator{\subtrees}{subtrees}
@@ -98,6 +100,7 @@
 \DeclareMathOperator{\emptyfun}{empty}
 \DeclareMathOperator{\isinfun}{isin}
 \DeclareMathOperator{\node}{node}
+\DeclareMathOperator{\tree}{tree}
 \DeclareMathOperator{\heightup}{height\_up}
 \DeclareMathOperator{\insertfun}{insert}
 \DeclareMathOperator{\inslist}{ins_{list}}
@@ -109,6 +112,10 @@
 \DeclareMathOperator{\pfadrop}{pfa\_drop}
 \DeclareMathOperator{\pfashrink}{pfa\_shrink}
 \DeclareMathOperator{\splitrelation}{split\_relation}
+\DeclareMathOperator{\blistassn}{blist\_assn}
+\DeclareMathOperator{\impsplit}{imp\_split}
+\DeclareMathOperator{\binsplit}{bin\_split}
+\DeclareMathOperator{\linsplit}{lin\_split}
 
 \DeclareMathOperator{\rebalancemt}{rebalance\_middle\_tree}
 % TODO add all functions here
@@ -122,7 +129,21 @@
     insert,%
     tree,%
     node,%
+    nodes,%
+    height,%
     length,%
     take,%
+    div,%
+    inorder,%
+    sorted,%
+    set,%
+    bal,%
+    ins,%
+    insert,%
+    del,%
+    delete,%
+    rebalance\_middle\_tree,%
+    rebalance\_last\_tree,%
+    split\_max,%
 },emphstyle={\upshape}
 }

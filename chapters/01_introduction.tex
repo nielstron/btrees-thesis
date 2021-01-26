@@ -18,15 +18,63 @@ are preserved by the obtained implementation.
 \section{The Isabelle Proof Assistant}
 
 The Isabelle/HOL tool is an interactive theorem prover.
-The user outlines a proof and tells the system which proof methods to apply to
-resolve each step.
-% TODO more info
-
-Isabelle/HOL is built on PolyML, a functional language similar to OCaml
+It is built on PolyML, a functional language similar to OCaml
 and Haskell.% factual accuracy
 The implementation will hence make use of newly defined functions, where
 \texttt{definition} denotes classical definitions and \texttt{fun} (an abbreviation of "function")
-is used for recursive definition.
+is used for recursive definitions.
+Definitions that are not explicitly denoted with \texttt{partial\_fun}
+incorporate an automatic proof of termination.
+
+Theorems can be formulated in a similar manner to how they written in this paper.
+To prove a theorem correct, the system basically provides two different
+proof styles.
+In the apply-Style, the user tells the system which proof method
+to apply to modify the current goal.
+This is practical if the number of assumptions
+is high or the goal is large and writing the terms
+out would be impractical.
+Since this is the case for the proofs of the imperative programs,
+almost all proofs in \autoref{chapter:imp-set} are written in this style.
+
+The other option is to write structured proofs.
+The user outlines a proof with intermediate goals
+and tells the system which proof methods to apply to
+resolve each step.
+This method is usually preferred as it is more readable and usually
+faster on the system side.
+All complex proofs in \autoref{chapter:abs-set} are hence written in this style.
+
+The system provides a number of proof methods,
+such as logical or set reasoning or simplification.
+When talking about "automatic" proofs, usually a proof that follows
+by applying a single command is meant (such as the method \texttt{auto},
+a combination of logical reasoning and simplification).
+
+Datatypes may be defined recursively.
+The following shows as an example the internal definition of the list datatype.\footnote{
+    The actual definition is worded slightly different but this is of no importance here.
+}
+
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:list-def]
+datatype 'a list = [] | 'a # 'a list
+\end{lstlisting}
+
+In natural language this means that either a list is the empty list,
+or it is an element prepended to another list.
+As usual in ML like languages, we may deconstruct an argument to a function
+by pattern matching to this construction.
+As an example for a function definition,
+the Isabelle internal list catenation function follows below.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:append-def]
+fun (@) :: 'a list $\Rightarrow$ 'a list $\Rightarrow$ 'a list where
+    [] @ ys = ys |
+    (x#xs) @ ys = x # (xs @ ys)
+\end{lstlisting}
+
+Further details on notation, proof techniques and more in Isabelle/HOL
+may be found in \parencite{DBLP:books/sp/NipkowPW02}.
 
 % function notation (like haskell/OCaml)
 % NOTE all functions terminate, unless declared "partial"
@@ -116,7 +164,7 @@ hence preserved in the given implementation.
 
 B-Trees are used in almost all modern databases for storing key-value pairs.
 
-\chapter{Functional B-Trees in Isabelle}
+\chapter{Functional B-Trees in Isabelle}\label{chapter:abs-set}
 
 Functional specifications of data structures tend to have properties that
 are easier to prove than for corresponding imperative implementations
@@ -237,6 +285,22 @@ Many properties of B-Trees follow intuitively by considering
 the inorder view on the tree as it is invariant for many operations (i.e. stealing from the right neighbor node).
 We will see later how the use of this fact comes in handy for proving
 important properties of the implementation.
+
+Since B-Trees are usually only defined for positive
+orders, we obtain the following overall invariant for B-Trees.
+\begin{definition}
+    $k > 0 \Longrightarrow \btree_k t := \bal t \wedge \order^r_k t \wedge \sorted (\inorder t)$
+\end{definition}
+
+The B-Tree definition is only meaningful for positive $k$.
+For the case that $k$ is equal to 0,
+all elements of the tree would have exactly one subtree
+and no internal elements.
+For the root node this even leads to a contradictory state:
+It is required to contain at least 1 element.
+However as it should not have more than $2k=0$ elements,
+this constraint cannot be satisfied.
+This is consistent with the common definitions.
  % TODO note benefit over btree_sorted
 
 \section{Height of B-Trees}
@@ -379,34 +443,34 @@ operations
     \item delete :: 'a $\Rightarrow$ 'a t $\Rightarrow$ 'a t
 \end{itemize}
 
+In addition an \textit{invariant :: 'a t $\Rightarrow$ bool} has to be supplied
+that stays unchanged by all operations.
 For this work, using the definition from \autoref{lst:btree-def},
 we consider \textit{'a t = 'a btree} in all above equations.
 The standard approach is to show that we can provide functions for the B-Tree
 that have the same effect as insertion, deletion or testing on contained elements
 in abstract sets with the same elements.
 
-However, using an inorder function to
-as an intermediate abstraction step, proofs tend to become simpler for a simplifying
-based prover to resolve. 
-This method has been applied in \parencite{DBLP:conf/itp/Nipkow16} and yielded
-fully automatic proofs.
-We therefore resort to the alternative interface proposed in that work.
-In addition to an \textit{invariant :: 'a t $\Rightarrow$ bool}
-it requires a function \textit{inorder :: 'a t $\Rightarrow$ 'a list}
-that is associated with the inorder traversal of the tree.
-The invariant and inorder functions follow directly from the
-definition of B-Trees in \autoref{sec:basic-defs}.
-The interface is then implemented by providing set operations
-and the proof that they maintain the invariants.
+We know from \autoref{sec:basic-defs} that one of the invariants
+of the tree is that it is always sorted.
+While this is expressed in a somewhat cumbersome manner
+in the original definition \parencite{DBLP:journals/acta/BayerM72},
+this requirement is nothing else but a sortedness of the inorder view of the tree.
+Knowing this, we resort to a specialized Set interface
+proposed in \parencite{DBLP:conf/itp/Nipkow16}.
+In that work, the approach yielded automatic proofs for 2-3-Trees
+and 2-3-4-Trees, which are specializations of B-Trees.
 
-In the following, $Leaf$ is an empty tree and hence represents
-the empty set, satisfying the first part of the specification.
-Further, we specify $k > 0 \wedge \order^r_k t \wedge bal t$
+The invariant and inorder functions for this set interface
+follow directly from the definition of B-Trees in \autoref{sec:basic-defs}.
+Hence, we specify $k > 0 \wedge \order^r_k t \wedge \bal t$
 as the invariant of B-Trees.
-The exact reason why $k > 0$ is required will become clear with the
-specification of the deletion function,
-for now we will simply argue that this is consistent with
-the literature we have found on the topic.
+The interface is then implemented by providing set operations
+and the proofs of invariant preservation.
+
+Some parts of the Set specification are trivial.
+In the following, \textit{Leaf} is an empty tree and hence represents
+the empty set, satisfying the first part of the specification.
 It can be seen directly that the leafs already satisfy all three properties.
 The following sections will describe the implementation of the
 non-trivial set operations.
@@ -479,7 +543,7 @@ Described in natural language, the split function should return two sublists
 that concatenate to the original list.
 Further if the elements came in sorted order,
 the list is split such that the key to the left is strictly less than the desired value
-and the key to the right less or equal.
+and the key to the right should be less or equal.
 
 The benefit of restricting the sortedness of the list only to its separators
 simplifies the proofs of showing that a certain function fulfils the split abstraction.
@@ -503,7 +567,13 @@ the \textit{isin} function.
 The definition in \autoref{lst:isin-fun} also shows exemplary usage of the split function.
 In case the right part of the split list is non-empty,
 we check the element at that level or recurse in the given subtree.
-Otherwise, we may directly recurse to the last tree in the node.
+Otherwise, we may directly recurse to the last tree in the node.\footnote{
+    Since this function recurses on the split function,
+    in order to show that this function terminates, we need to tell
+    the system that the obtained subtrees are of smaller size than the current tree.
+    Adding this fact to the default termination simplification set resolves
+    the issue for all coming functions.
+}
 %-------------------------------------------------
 
 \begin{figure}
@@ -523,8 +593,8 @@ fun isin:: 'a btree $\Rightarrow$ 'a $\Rightarrow$ bool where
 \end{figure}
 
 By the standard set interface the operation is only required to work on
-sorted, balanced trees of a certain order, however only the former is actually required
-for correctness.
+sorted, balanced trees of a certain order, however only the first property
+is actually required for correctness.
 The following lemma shows the required property of the function
 
 \begin{theorem}
@@ -1029,7 +1099,7 @@ our implementation of B-Trees is proven correct.
 The next step towards imperative B-Trees is to implement
 an imperative refinement of the set operations.
 
-\chapter{Imperative B-Trees in Isabelle}
+\chapter{Imperative B-Trees in Isabelle}\label{chapter:imp-set}
 
 In the previous chapter, we have seen
 an abstract definition of B-Trees and the reasoning
@@ -1155,6 +1225,8 @@ definition pfa_insert_grow  $\equiv$ $\lambda$(a,n) i x. do {
   a'' $\leftarrow$ pfa_insert a' i x;
   return a''
 }
+
+$\dots$
 \end{lstlisting}
 \end{figure}
 
@@ -1279,6 +1351,9 @@ fun btree_assn :: nat $\Rightarrow$ 'a::heap btree $\Rightarrow$ 'a btnode ref o
     * list_assn ((btree_assn k) $\times_a$ id_assn) ts tsi'
     ) |
   btree_assn _ _ _ = false
+
+abbreviation blist_assn k $\equiv$ list_assn ((btree_assn k) $\times_a$ id_assn)
+
 \end{lstlisting}
 
 It seems a little bit awkward that the definition
@@ -1297,6 +1372,7 @@ note that we can specify that every node of a B-Tree should have
 capacity for $2k$ elements.
 
 \subsection{The split function}
+\label{sec:imp-split}
 
 To implement any set operations we again need a split operation.
 However, what split function exactly will be used can be abstracted again.
@@ -1308,24 +1384,23 @@ in which should be recursed.
 The refinement condition derived from this relationship is as follows.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
-definition split_relation xs $\equiv$ $\lambda$(as,bs) i. i $\le$ length xs $\wedge$ as = take i xs $\wedge$ bs = drop i xs
+definition split_relation xs $\equiv$ $\lambda$(ls,rs) i. i $\le$ length xs $\wedge$ ls = take i xs $\wedge$ rs = drop i xs
 \end{lstlisting}
 
 A very useful alternative statement of the relationship follows automatically.
 
 \begin{lemma}
-    $\splitrelation as\ (ls,rs)\ i = (as = ls@rs \wedge i = \length ls)$
+    $\splitrelation xs\ (ls,rs)\ i = (xs = ls@rs \wedge i = \length ls)$
 \end{lemma}
 
 From this, we characterize the desired imperative
 split function \texttt{imp\_split} by its Hoare-Triple.
 
-\begin{lstlisting}[mathescape=true, language=Isabelle]
-$\langle$ is_pfa c tsi a * list_assn (btree_assn k $\times_a$ id_assn) ts tsi * true $\rangle$
-imp_split a
-$\langle\lambda$ i. is_pfa c tsi a * list_assn (btree_assn k $\times_a$ id_assn) ts tsi
-  * $\uparrow$(split_relation ts (split ts p) i)$\rangle_t$
-\end{lstlisting}
+\begin{align*}
+    \langle & \pfarraycap c\ tsi\ a * \blistassn k\ ts\ tsi *  true \rangle \\
+            & \impsplit a \\
+\langle\lambda i. & \pfarraycap c\ tsi\ a * \blistassn k\ ts\ tsi * \uparrow(\splitrelation ts\ (\splitfun ts p)\ i)\rangle_t
+\end{align*}
 
 Just as with the abstract implementation,
 the imperative refinements can be built with this characterization alone.
@@ -1382,15 +1457,14 @@ Further the invariant contains the fact that the array stays unchanged.
 % TODO state loop invariant explicitely
 
 \begin{lemma}
-    \begin{center}
-        $\langle$is\_pfa c xs (a,n) * true $\rangle$ \\
-        lin\_split (a,n) p \\
-        $\langle \lambda$i.
-        is\_pfa c xs (a,n) 
-        * $\uparrow$(i $\leq$ n 
-            $\wedge$ ($\forall$j < i. snd (xs!j) < p) 
-            $\wedge$ (i<n $\longrightarrow$ snd (xs!i) $\geq$ p)) $\rangle_t$ 
-    \end{center}
+    \begin{align*}
+        \langle &\pfarraycap c\ xs\ (a,n) * true \rangle \\
+                  &\linsplit\ (a,n)\ p \\
+        \langle \lambda i. & \pfarraycap c\ xs\ (a,n) \\
+        * &\uparrow(i \leq n 
+            \wedge (\forall j < i. snd (xs!j) < p) 
+            \wedge (i<n \longrightarrow snd (xs!i) \geq p)) \rangle_t 
+    \end{align*}
 \end{lemma}
 
 For unexciting reasons, this post condition
@@ -1424,7 +1498,7 @@ which is the result.
     definition bin_split :: ('a::heap $\times$ 'b::{heap,linorder}) pfarray $\Rightarrow$ 'b $\Rightarrow$ nat Heap 
     where 
       bin_split $\equiv$ $\lambda$(a,n) p. do { 
-    (low',high') $\leftarrow$ heap_WHILET  
+    (low',high') $\leftarrow$ while  
       ($\lambda$(low,high). return (low < high))  
       ($\lambda$(low,high). let mid = ((low  + high) div 2) in 
        do { 
@@ -1457,15 +1531,14 @@ The additional requirement here is naturally
 that the list of separators must be sorted.
 
 \begin{lemma} $\sorted (\separators xs) \Longrightarrow$ \\
-    \begin{center}
-        $\langle$is\_pfa c xs (a,n) * true $\rangle$ \\
-        bin\_split (a,n) p \\
-        $\langle \lambda$i.
-        is\_pfa c xs (a,n) 
-        * $\uparrow$(i $\leq$ n 
-            $\wedge$ ($\forall$j < i. snd (xs!j) < p) 
-            $\wedge$ (i<n $\longrightarrow$ snd (xs!i) $\geq$ p)) $\rangle_t$ 
-    \end{center}
+    \begin{align*}
+        \langle &\pfarraycap c\ xs\ (a,n) * true \rangle \\
+                  &\binsplit\ (a,n)\ p \\
+        \langle \lambda i. & \pfarraycap c\ xs\ (a,n) \\
+        * &\uparrow(i \leq n 
+            \wedge (\forall j < i. snd (xs!j) < p) 
+            \wedge (i<n \longrightarrow snd (xs!i) \geq p)) \rangle_t 
+    \end{align*}
 \end{lemma}
 
 Since we know that this implies equivalence to the abstract split function
@@ -1480,9 +1553,167 @@ the set operations.
 
 \subsection{The isin function}
 
+The imperative set operations do quite directly follow
+from the refinement the abstract operations.
+Pointers need to be dereferenced, modified and updated.
+Functions such as length need to be called and have their result
+stored explicitly before use.
+Other than that, the definition of the imperative isin in \autoref{lst:imp-isin-fun}
+function should bare no surprises.
+Note that it makes use of the function \texttt{imp\_split}
+which is an arbitrary split function that has the Hoare Triple
+specified in \autoref{sec:imp-split}.
+
+\begin{figure}
+\begin{lstlisting}[mathescape=true, language=Isabelle, label={lst:imp-isin-fun},
+    caption={The imperative isin function}]
+partial_function (heap) isin :: 'a btnode ref option $\Rightarrow$ 'a $\Rightarrow$  bool Heap
+  where
+    isin p x =
+  (case p of
+     None $\Rightarrow$ return False |
+     (Some a) $\Rightarrow$ do {
+       node $\leftarrow$ !a;
+       i $\leftarrow$ imp_split (kvs node) x;
+       tsl $\leftarrow$ pfa_length (kvs node);
+       if i < tsl then do {
+         s $\leftarrow$ pfa_get (kvs node) i;
+         let (sub,sep) = s in
+         if x = sep then
+           return True
+         else
+           isin sub x
+       } else
+           isin (last node) x
+    }
+)
+\end{lstlisting}
+\end{figure}
+
+The Hoare Triple to argue that this is a refinement of the abstract operation
+is as follows (where $abs\_split$ refers to some abstract implementation
+of the set operations from \autoref{chapter:abs-set}):
+
+\begin{lemma} $\sorted (\inorder t) \Longrightarrow$ \\
+\begin{center}
+   $\langle$btree\_assn k t ti * true$\rangle$ \\
+     isin ti x
+   $\langle$$\lambda$r. btree\_assn k t ti * $\uparrow$(abs\_split.isin t x = r)$\rangle_t$
+\end{center}
+\end{lemma}
+
+Note how, in contrast to the abstract specification,
+we need to also show that the imperative function does not modify the tree
+residing in the heap.
+The proof follows by induction on the computation of the abstract isin function.
+% TODO conclusion ?
+Inside a structured proof skeleton of the induction,
+proving the subgoals turned out to be the most
+appropriate in an apply style manner.
+The only help that the separation automation tool required
+is a manually specification of the instantiation for existential quantifiers
+for applying the inductive hypothesis. 
+% TODO more details?
+
 \subsection{Insertion}
 
 %TODO Description of applying the refinement framework to the insert function
+The imperative implementation and derived heap rule of the insertion function follow
+the same pattern as the isin function.
+The only interesting part is whether and how often new memory is allocated.
+An excerpt of the ins function can be seen in \autoref{lst:imp-ins-fun}.
+The function includes some opimizations, such as not calling
+$\node_i$ if the node is not overflowing.
+This is an optimization as otherwise $\node_i$ in
+\autoref{lst:imp-nodei-fun} would always allocate a new B-Tree node
+rather than updating the current node in place.
+
+To prove that this optimization is valid, the only obligation
+is to show that the updated node itself is equivalent
+to the node returned by $\node_i$.
+Since we are in the branch where the node contains less than $2k$
+elements, this is easy to show, providing some intermediate lemmas
+that relate concrete node and abstract node in this context.
+
+The insertion function incorporates the function $\tree_i$
+in much the same way.
+Here the proof of equivalence followed automatically.
+
+% TODO...
+\begin{figure}
+\begin{lstlisting}[mathescape=true, language=Isabelle, label={lst:imp-nodei-fun},
+    caption={The imperative node$_i$ function}]
+definition node$_i$ 
+    :: nat $\Rightarrow$ ('a btnode ref option $\times$ 'a) pfarray $\Rightarrow$ 'a btnode ref option $\Rightarrow$ 'a btupi Heap
+  where node$_i$ k a ti $\equiv$ do {
+      n $\leftarrow$ pfa_length a;
+      if n $\le$ 2*k then do {
+        a' $\leftarrow$ pfa_shrink_cap (2*k) a;
+        l $\leftarrow$ ref (Btnode a' ti);
+        return (T$_i$ (Some l))
+      }
+      else do {
+        b $\leftarrow$ (pfa_empty (2*k)
+            :: ('a btnode ref option $\times$ 'a) pfarray Heap);
+        i $\leftarrow$ split_half a;
+        m $\leftarrow$ pfa_get a i;
+        b' $\leftarrow$ pfa_drop a (i+1) b;
+        a' $\leftarrow$ pfa_shrink i a; 
+        a'' $\leftarrow$ pfa_shrink_cap (2*k) a';
+        let (sub,sep) = m in do {
+          l $\leftarrow$ ref (Btnode a'' sub);
+          r $\leftarrow$ ref (Btnode b' ti);
+          return (Up$_i$ (Some l) sep (Some r))
+        }
+      }
+    }
+
+\end{lstlisting}
+\end{figure}
+
+\begin{figure}
+\begin{lstlisting}[mathescape=true, language=Isabelle, label={lst:imp-ins-fun},
+    caption={Excerpt of the imperative insert function}]
+
+partial_function (heap) ins :: nat $\Rightarrow$ 'a $\Rightarrow$ 'a btnode ref option $\Rightarrow$ 'a btupi Heap 
+    where 
+      ins k x apo = (case apo of 
+    None $\Rightarrow$ return (Up$_i$ None x None) | 
+    (Some ap) $\Rightarrow$ do { a $\leftarrow$ !ap; i $\leftarrow$ imp_split (kvs a) x; tsl $\leftarrow$ pfa_length (kvs a); 
+      if i < tsl then do { 
+        s $\leftarrow$ pfa_get (kvs a) i; 
+        let (sub,sep) = s in 
+        if sep = x then return (T$_i$ apo) 
+        else do { 
+          r $\leftarrow$ ins k x sub; 
+          case r of  
+            (T$_i$ lp) $\Rightarrow$ do { pfa_set (kvs a) i (lp,sep); return (T$_i$ apo) 
+            } | 
+            (Up$_i$ lp x' rp) $\Rightarrow$ do { 
+              pfa_set (kvs a) i (rp,sep); 
+              if tsl < 2*k then do { 
+                  kvs' $\leftarrow$ pfa_insert (kvs a) i (lp,x'); 
+                  ap := (Btnode kvs' (last a)); 
+                  return (T$_i$ apo) 
+              } else do { 
+                kvs' $\leftarrow$ pfa_insert_grow (kvs a) i (lp,x'); 
+                node$_i$ k kvs' (last a) 
+        } } } } else $\dots$
+
+definition insert :: nat $\Rightarrow$ ('a::{heap,default,linorder}) $\Rightarrow$ 'a btnode ref option $\Rightarrow$ 'a btnode ref option Heap
+ where insert $\equiv$ $\lambda$ k x ti. do {
+  ti' $\leftarrow$ ins k x ti;
+  case ti' of
+     T$_i$ sub $\Rightarrow$ return sub |
+     Up$_i$ l a r $\Rightarrow$ do {
+        kvs $\leftarrow$ pfa_init (2*k) (l,a) 1;
+        t' $\leftarrow$ ref (Btnode kvs r);
+        return (Some t')
+      }
+}
+
+\end{lstlisting}
+\end{figure}
 
 An imperative version of the deletion operation has been specified
 using some operations on partially filled arrays in addition to 

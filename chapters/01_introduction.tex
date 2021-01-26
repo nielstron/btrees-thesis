@@ -209,7 +209,7 @@ we simply choose the height of the last tree as an anchor point.
 
 fun height :: 'a btree $\Rightarrow$ nat where
   height Leaf = 0 |
-  height (Node ts t) = Suc (fold max (map height (subtrees ts)) (height t))
+  height (Node ts t) = 1 + (fold max (map height (subtrees ts)) (height t))
 
 fun bal :: 'a btree $\Rightarrow$ bool where
     bal Leaf = True |

@@ -1104,31 +1104,94 @@ an imperative refinement of the set operations.
 In the previous chapter, we have seen
 an abstract definition of B-Trees and the reasoning
 behind its correct implementation of the set interface.
-However, the specification would not yield executable
-code, not to speak of efficient one.
+However, the specification would not yield 
+efficiently executable code.
 % main difference: specify allocation of data
 The reason is that the abstract specification works with
-the recursive datatypes of nodes and lists
-and does not give hints as to where and how to
-efficiently store, update or destroy these elements.
+the ephemeral datatypes of nodes and lists.
+This way, trivially no data is unknowingly
+modified or corrupted,
+however this is at the cost of computational efficiency.
+In order to obtain an efficient implementation
+on mutable objects,
+we specify imperative code and show that
+it refines the abstract specification.
 
-Using the Isabelle Refinement Framework % TODO how to refer to this
-\parencite{DBLP:journals/jar/Lammich19}
-we concretize the data structures to use and
-operations on them.
-This process yields verified imperative code
+\section{Refinement to Imperative/HOL}
+
+The proofs of correct behavior for our imperative
+code are stated with separation logic in Isabelle/HOL.
+The framework for this was provided by
+\parencite{DBLP:journals/jar/Lammich19}.
+It provides a way to reason about mutable resources
+that lie in separated parts of an external heap,
+an abstracted memory device.
+The assumptions on the state of the heap are called \textit{assertions}.
+They are specified as formulae that hold for specific heap states.
+Assertions that are required to understand
+this work follow.
+
+\begin{itemize}
+    \item \textit{emp} holds for the empty heap
+    \item \textit{true} and \textit{false} hold for every and no heap respectively
+    \item $\uparrow(P)$ holds if the heap is empty and predicate $P$ holds
+    \item $a \mapsto_a as$ holds if the heap at position $a$ is reserved and contains
+    an array representing $as$.
+    \item $a \mapsto_r x$ holds if the heap at position $a$ is reserved and contains
+    value $x$ where $x$ is of some type $'a::heap$
+    \item $\exists_A x. P x$ holds if there exists some $x$ such that predicate P
+    holds on the heap for given $x$.
+    \item $P_1 * P_2$ holds if each assertion holds on its part of the heap
+    and the areas of the heap described by each assertion are non-overlapping
+\end{itemize}
+
+In general, refinement relates a concrete data structure
+to an abstract structure via some refinement assertion.
+An example for such a refinement assertion are the id assertion and the
+list assertion, relating lists given a refinement
+assertion between the elements of the first and second list.
+
+\begin{lstlisting}[mathescape=true, language=Isabelle]
+definition id_assn a b = $\uparrow$(a = b)
+
+fun list_assn :: ('a $\Rightarrow$ 'c $\Rightarrow$ assn) $\Rightarrow$ 'a list $\Rightarrow$ 'c list $\Rightarrow$ assn where
+  list_assn P [] [] = emp
+| list_assn P (a#as) (c#cs) = P a c * list_assn P as cs
+| list_assn _ _ _ = false
+\end{lstlisting}
+
+We can then specify Hoare Triples on assertions.
+
+\begin{definition}
+    $\langle$ P $\rangle$ c $\langle \lambda r. $ Q r $\rangle$ \\
+    holds iff if assertion $P$ holds on some heap before operation $c$
+    is executed on the heap,
+    and operation $c$ returns some $r$, then assertion $Q$ holds
+    on the modified heap for $r$.
+\end{definition}
+
+A simple example Hoare Triple is 
+$\langle id\_assn\ a\ b \rangle return b \langle \lambda r. id\_assn\ a\ r \rangle$.
+In the refinement process, we will use more complex relationship assertions
+on the input $b$ to some object $ab$ and show that the value $r$ returned
+by the imperative program satisfies a relationship to the output of the refined
+function applied to $ab$.
+
+Refining all set operations from \autoref{chapter:abs-set}
+yields imperative code
 that stores data on the heap
-and acts on a concretized version of the B-Trees
+and operates with more efficient destructive updates.
+We do not need to show that the operations themselves
+satisfy the requirements of the set interface.
+Instead we merely need to show that the imperative code
+acts on a concretized version of the B-Trees
 the same way as the abstract operations on the abstract version.
-
-\section{The Imperative Refinement Framework}
 
 % TODO note what to introduce here
 % abstract idea: implementation that has same effect on concrete ds
 % as abstract function on abstract ds
 % TODO short intro hoare triples and notation here
 % *  and \uparrow
-Short Description of Peters Refinement framework regarding our implementation
 
 \subsection{Refinement of abstract lists}
 

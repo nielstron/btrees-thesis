@@ -1595,11 +1595,11 @@ is as follows (where $abs\_split$ refers to some abstract implementation
 of the set operations from \autoref{chapter:abs-set}):
 
 \begin{lemma} $\sorted (\inorder t) \Longrightarrow$ \\
-\begin{center}
-   $\langle$btree\_assn k t ti * true$\rangle$ \\
-     isin ti x
-   $\langle$$\lambda$r. btree\_assn k t ti * $\uparrow$(abs\_split.isin t x = r)$\rangle_t$
-\end{center}
+\begin{align*}
+   \langle &\btreeassn k\ t\ ti * true\rangle \\
+           &\isinfun ti\ x \\
+   \langle \lambda r. &\btreeassn k\ t\ ti * \uparrow(\isinfun t\ x = r)\rangle_t
+\end{align*}
 \end{lemma}
 
 Note how, in contrast to the abstract specification,
@@ -1622,7 +1622,7 @@ The imperative implementation and derived heap rule of the insertion function fo
 the same pattern as the isin function.
 The only interesting part is whether and how often new memory is allocated.
 An excerpt of the ins function can be seen in \autoref{lst:imp-ins-fun}.
-The function includes some opimizations, such as not calling
+The function includes some optimizations, such as not calling
 $\node_i$ if the node is not overflowing.
 This is an optimization as otherwise $\node_i$ in
 \autoref{lst:imp-nodei-fun} would always allocate a new B-Tree node
@@ -1634,10 +1634,29 @@ to the node returned by $\node_i$.
 Since we are in the branch where the node contains less than $2k$
 elements, this is easy to show, providing some intermediate lemmas
 that relate concrete node and abstract node in this context.
+Adding a lemma on the equivalence between abstract and imperative
+$node_i$, we finally obtain a lemma for ins by induction on the computation
+of the abstract ins function.
 
 The insertion function incorporates the function $\tree_i$
 in much the same way.
 Here the proof of equivalence followed automatically.
+With the hoare rule for $ins$, we obtain the final desired lemma
+on the imperative insertion.
+
+\begin{lemma} $k > 0 \wedge \sorted (\inorder t) \Longrightarrow$ \\
+\begin{align*}
+   \langle &\btreeassn k\ t\ ti * true\rangle \\
+           &\insertfun k\ x\ ti \\
+   \langle \lambda r. &\btreeassn k\ (\insertfun k\ x\ t)\ r\rangle_t
+\end{align*}
+\end{lemma}
+
+% TODO say something about k?
+%Note how we have the additional assumption that $k$ be positive. This was only required to show correct order in the abstract setting.
+%Here, the capacity of the root node needs to be specified.
+%And since the capacity has to be $2k$ and the node has to hold at least one element
+
 
 % TODO...
 \begin{figure}

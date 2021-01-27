@@ -15,11 +15,13 @@ functional and the imperative implementation.
 Desirable properties regarding low runtime and high storage usage
 are preserved by the obtained implementation.
 
+% TODO related work?
+
 \section{The Isabelle Proof Assistant}
 
-The Isabelle/HOL tool is an interactive theorem prover.
+Isabelle/HOL is an interactive theorem prover.
 It is built on PolyML, a functional language similar to OCaml
-and Haskell.% factual accuracy
+and Haskell.% TODO factual accuracy
 The implementation will hence make use of newly defined functions, where
 \texttt{definition} denotes classical definitions and \texttt{fun} (an abbreviation of "function")
 is used for recursive definitions.
@@ -61,11 +63,15 @@ datatype 'a list = [] | 'a # 'a list
 \end{lstlisting}
 
 In natural language this means that either a list is the empty list,
-or it is an element prepended to another list.
+or it is an element prepended on another list.
 As usual in ML like languages, we may deconstruct an argument to a function
 by pattern matching to this construction.
-As an example for a function definition,
-the Isabelle internal list catenation function follows below.
+In addition, the type $'t$ of any expression $e$ can be
+made explicit by writing \textit{e :: 't}.
+Functions that take values of type $'a$ and return values of type $'b$ 
+have type \textit{'a $\Rightarrow$ 'b}.
+The Isabelle internal list catenation function serves as
+an example for a function definition with explicit type.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:append-def]
 fun (@) :: 'a list $\Rightarrow$ 'a list $\Rightarrow$ 'a list where
@@ -90,10 +96,11 @@ may be found in \parencite{DBLP:books/sp/NipkowPW02}.
 B-Trees were first proposed by Bayer et al. in \parencite{DBLP:journals/acta/BayerM72},
 as a data-structure to efficiently store and retrieve indices stored on storage devices
 with slow memory access.
-They are a generalization of 234-Trees and a specialization of (a,b)-Trees. %citation
-In general, B-Trees are hence a special kind of balanced search-trees.
-They are different from binary trees in that the number of subtrees is not constant 2
-but is defined by the \textit{order} \texttt{k} of the tree.
+% TODO reorder with definitions
+They are a generalization of 234-Trees and a specialization of (a,b)-Trees
+%TODO citation
+and as such hence a kind of balanced search-trees.
+The number of subtrees in each node is defined by the \textit{order} $k$ of the tree.
 
 \subsection{Definitions}
 \label{sec:data_structure_defs}
@@ -124,13 +131,13 @@ number of subtrees for each node.
 However, as pointed out in \parencite{DBLP:books/daglib/0095349_mod},
 the property is defined differently in the literature.
 For the purpose of this work, the original definition by Bayer et al. was chosen as most suitable.
-A B-Tree is of order \textit{k}, if each internal node has at least \textit{k+1}
-subtrees and at most \textit{2*k+1}.
+A B-Tree is of order $k$, if each internal node has at least $k+1$
+subtrees and at most $2k+1$.
 The alternative of defining the nodes to have between $\lceil \frac{k}{2} \rceil$
 and $k$ children (as proposed in \parencite{DBLP:books/lib/Knuth98a}),
 involves cumbersome \textit{real} arithmetic that unnecessarily complicates
 mechanized proofs.
-Sticking to this definition is further supported by the fact that nodes are supposed
+Sticking to the original definition is further supported by the fact that nodes are supposed
 to fill memory pages which are usually of even size (usually some power of 2).
 An even number of separators and trees plus one dangling last right tree maximizes
 the usage of such a page.
@@ -142,19 +149,30 @@ The lowest level of nodes hence contains a list of separators and
 list of pointers to leaves.
 
 % TODO insert image of valid B-Tree
+A simple B-Tree may be seen in \autoref{fig:btree-basic-nopair}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/btree-basic-nopair.pdf}
+    \caption{A small balanced B-Tree of order $2$ and
+    height $2$ containing $3$ nodes and $6$ elements.}
+    \label{fig:btree-basic-nopair}
+\end{figure}
 
 \subsection{Desirable Properties}
 
-Due to the potentially large branching factor, combined with the balancing,
-the amount of required memory accesses when accessing data is reduced drastically.
+B-Trees are assumed to be stored on external memory,
+such that each node roughly matches a page in main memory.
+Due to the potentially large branching factor and the balancing,
+the number of required memory accesses for retrieving data stays small even for
+large amounts of data stored.
 This is due to the fact that the overall number of memory accesses is bounded by the depth
 of the tree, which again is logarithmic in the number of indices -
-where the base of the logarithm is closely proportional to the order \textit{k} of the tree.
+where the base of the logarithm is closely proportional to the order $k$ of the tree.
 
-Further, the storage usage of B-Trees is at a minimum of $50\%$ at all times,
+Further, by design, the storage usage of B-Trees is at a minimum close to $50\%$,
 where the average usage is usually higher. \parencite{DBLP:journals/acta/BayerM72}
-This is due to the fact that every node reserves the storage of $2*k$ keys and separators
-and by definition always contains at least $k$ elements.
+This is due to the fact that every node reserves the storage of $2k$ keys and separators
+but by definition always contains at least $k$ elements.
 
 These properties are key to the widespread popularity of B-Trees and are
 hence preserved in the given implementation.
@@ -163,6 +181,7 @@ hence preserved in the given implementation.
 \subsection{Applications}
 
 B-Trees are used in almost all modern databases for storing key-value pairs.
+% TODO more
 
 \chapter{Functional B-Trees in Isabelle}\label{chapter:abs-set}
 
@@ -184,6 +203,14 @@ Inspired by the design in \parencite{DBLP:conf/popl/MalechaMSW10}, the B-Tree da
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-def]
 datatype 'a btree = Leaf | Node ( 'a btree * 'a ) list 'a btree
 \end{lstlisting}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/btree-basic.pdf}
+    \caption{The B-Tree from figure \autoref{fig:btree-basic-nopair}.
+    Subtrees and separators that lie in pairs in the implementation are surrounded by brackets.}
+    \label{fig:btree-basic}
+\end{figure}
 
 By interleaving the subtrees and separators, expression of invariants
 on the tree is possible without the explicit use of indices into lists.
@@ -368,11 +395,13 @@ with respect to the number of nodes stored in the tree.
 These bounds are sharp, which we prove by providing 
 functions that generate exactly those trees
 that satisfy the requirements of B-Trees, have a given height
-and satisfy the inequality with equality.
+and satisfy the inequality with equality (in \autoref{lst:sharp-trees-def})
 The proof for internal nodes follows by induction over the creation,
 the rule for the roots follows directly.
 
-\begin{lstlisting}[mathescape=true, language=Isabelle]
+\begin{figure}
+\begin{lstlisting}[mathescape=true, language=Isabelle,label={lst:sharp-trees-def},
+    caption={The functions generating trees with minimal size and maximal size for given height.}]
 
 fun full_node where
   full_node k c 0 = Leaf |
@@ -400,6 +429,7 @@ fun slim_tree where
         (slim_node k c h)
 
 \end{lstlisting}
+\end{figure}
 
 %TODO (?) images of slim/full trees
 
@@ -727,6 +757,16 @@ fun insert::nat $\Rightarrow$ 'a $\Rightarrow$ 'a btree $\Rightarrow$ 'a btree w
 \end{lstlisting}
 
 \end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.48\linewidth]{figures/btree-basic-ins9.pdf}\\
+    \vspace*{1cm}
+    \includegraphics[width=0.48\linewidth]{figures/btree-basic-ins9-ins1.pdf}
+    \caption{The tree from \autoref{fig:btree-basic} after 
+    successive insertion of $9$ (top) and $1$ (bottom).}
+    \label{fig:btree-basic-ins}
+\end{figure}
 %TODO
 
 To fulfil the Set interface requirements,
@@ -984,6 +1024,18 @@ fun reduce_root where
  
 fun delete where delete k x t = reduce_root (del k x t)
 \end{lstlisting}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.48\linewidth]{figures/btree-basic-ins9-ins1-del10.pdf}\\
+    \vspace*{1cm}
+    \includegraphics[width=0.48\linewidth]{figures/btree-basic-ins9-ins1-del10-del3.pdf}
+    \caption{The tree from \autoref{fig:btree-basic-ins} after 
+    successive deletion of $10$ (top) and $3$ (bottom).
+    Note how the final result differs from approaches that would only steal single elements
+    from neighbors to hanlde underflow.}
+    \label{fig:btree-basic-del}
 \end{figure}
 
 From this fact follows further, that for the results of all intermediate functions
@@ -1525,7 +1577,7 @@ Further the invariant contains the fact that the array stays unchanged.
 
 \begin{lemma}
     \begin{align*}
-        \langle &\pfarraycap c\ xs\ (a,n) * true \rangle \\
+        \langle &\pfarraycap c\ xs\ (a,n)\rangle \\
                   &\linsplit\ (a,n)\ p \\
         \langle \lambda i. & \pfarraycap c\ xs\ (a,n) \\
         * &\uparrow(i \leq n 
@@ -1599,10 +1651,10 @@ that the list of separators must be sorted.
 
 \begin{lemma} $\sorted (\separators xs) \Longrightarrow$ \\
     \begin{align*}
-        \langle &\pfarraycap c\ xs\ (a,n) * true \rangle \\
+        \langle &\pfarraycap c\ xs\ (a,n)\rangle \\
                   &\binsplit\ (a,n)\ p \\
-        \langle \lambda i. & \pfarraycap c\ xs\ (a,n) \\
-        * &\uparrow(i \leq n 
+        \langle \lambda i. & \pfarraycap c\ xs\ (a,n)
+        * \uparrow(i \leq n 
             \wedge (\forall j < i. snd (xs!j) < p) 
             \wedge (i<n \longrightarrow snd (xs!i) \geq p)) \rangle_t 
     \end{align*}
@@ -1663,7 +1715,7 @@ of the set operations from \autoref{chapter:abs-set}):
 
 \begin{lemma} $\sorted (\inorder t) \Longrightarrow$ \\
 \begin{align*}
-   \langle &\btreeassn k\ t\ ti * true\rangle \\
+   \langle &\btreeassn k\ t\ ti\rangle \\
            &\isinfun ti\ x \\
    \langle \lambda r. &\btreeassn k\ t\ ti * \uparrow(\isinfun t\ x = r)\rangle_t
 \end{align*}
@@ -1713,7 +1765,7 @@ on the imperative insertion.
 
 \begin{lemma} $k > 0 \wedge \sorted (\inorder t) \Longrightarrow$ \\
 \begin{align*}
-   \langle &\btreeassn k\ t\ ti * true\rangle \\
+   \langle &\btreeassn k\ t\ ti\rangle \\
            &\insertfun k\ x\ ti \\
    \langle \lambda r. &\btreeassn k\ (\insertfun k\ x\ t)\ r\rangle_t
 \end{align*}
@@ -1801,13 +1853,18 @@ definition insert :: nat $\Rightarrow$ ('a::{heap,default,linorder}) $\Rightarro
 \end{lstlisting}
 \end{figure}
 
+\subsection{Deletion}
+
 An imperative version of the deletion operation has been specified
 using some operations on partially filled arrays in addition to 
 the ones in \autoref{lst:pfarray-def}.
-However the proof of its correctness was not conducted.
+Due to its length it is not shown here but may be looked up in the
+actual proof.
+
+However the proof of its refining property was not conducted.
 We assume that, apart from making use of the new
 heap rules introduced for the array operations,
-this proof works in the exact same manner as
+this proof would be structured similar to
 the previous proofs.
 
 \chapter{Conclusions}

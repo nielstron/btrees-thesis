@@ -486,32 +486,28 @@ The desired element was just found.
 
 This operation has no effect on the tree, it only walks through it.
 This fact follows directly due to the persistence of functional data structures.
-Hence, no proof of preserved invariant is required.
+Hence, no proof of preserved invariant is required,
+in contrast to the following tree-modifying operations.
 
 \subsection{Insertion}
+\label{sec:abs-ins}
 
-% TODO move abstract discussion to introduction
-%-------------------------------------------------
-However this is not true for the \textit{insertion} function.
-There is much consensus in the literature on how to conduct insertion into a B-Tree.
-%TODO citations
-There are not many provably correct functional implementations to our knowledge.
-However there is a relationship between 234-Trees and B-Trees,
-due to which the approach to the functional definition is inspired by the implementation
-in \parencite{DBLP:conf/itp/Nipkow16}.
-In that work, a correct implementation of the Set interface for 234-Trees 
-are provided.
 
-%TODO relationship to other implementations (are there more?)
-Generally, an element is inserted into leaf nodes.
-In case that there is enough space left, the element is simply placed at the correct
-position in the list of separators.
-However if the node has more than $2k$ elements after this insertion,
-we need to split it and, passing the median to the parent node,
-recurse back upwards.
-%-------------------------------------------------
+% TODO what is this for?
+%There are not many provably correct functional implementations to our knowledge.
+%However there is a relationship between 234-Trees and B-Trees,
+%due to which the approach to the functional definition is inspired by the implementation
+%in \parencite{DBLP:conf/itp/Nipkow16}.
+%In that work, a correct implementation of the Set interface for 234-Trees 
+%are provided.
 
-The implementation of the insertion function is documented in \autoref{lst:ins-fun}.
+The implementation of the insertion function
+as described in \autoref{par:intro-ins} is documented in \autoref{lst:ins-fun}.
+However, rather than manually checking whether the lowest level was reached,
+we recurse until we reach a Leaf node.
+Inserting into it will lead to an overflow that can be handled
+by the lowest nodes in the same manner as for internal nodes.
+
 To modularize insertion, the check for the overflow of a nodes list has been
 extracted to a function $node_i$.
 The function returns data in a new datatype called $up_i$, which
@@ -520,11 +516,12 @@ that could correctly be part of a node when placed next to each other.
 This construction appears the same way in \parencite{DBLP:conf/itp/Nipkow16}.
 
 The $ins$ function is a recursive helper function,
-that recurses down into the correct leaf node for inserting the desired element,
-and, on the way up, inserts potentially newly obtained subtrees into the
-current nodes list with the help of $node_i$.
-The $ins$ function also makes use of the new datatype $up_i$ to indicate whether
+that recurses down into the correct leaf node for inserting the desired element.
+In case of an overflow, it makes use of the datatype $up_i$ to indicate whether
 the current node had an overflow or not.
+If an overflow occured, an additional element and
+new subtree is passed back up, which is inserted into the
+current nodes list with the help of $node_i$.
 
 Finally, the $insert$ function calls the $ins$ helper function
 and transforms the result into a valid B-Tree.
@@ -639,8 +636,8 @@ Further, as we require a size of at least $2k+1$ elements for a split to occur,
 the resulting nodes each have at least $k$ elements.
 The argument hardly changes comparing the two upper bounds,
 but this fact can now be used for merging nodes in the deletion function as well.
-With this, the order invariant follows quite directly by induction.
 
+Using the above, the order invariant for \textit{ins} follows quite directly by induction.
 Since the invariant on B-Trees only requires $\order^r k$ on the
 root, we additionally derive versions of the invariants
 for root order.
@@ -653,6 +650,8 @@ Putting things together, we obtain preservation of the invariants
     \order^r_k (\insertfun_k x\ t) \wedge \bal (\insertfun_k x t)$
 \end{theorem}
 
+The theorem for the \textit{insert} function follows automatically.
+
 The set interface further requires the following fact.
 \begin{theorem}
     \label{thm:ins-set}
@@ -660,7 +659,7 @@ The set interface further requires the following fact.
     \inorder (\insertfun_k x\ t) = \insertfun_{list} x\ (\inorder t)$
 \end{theorem}
 
-Looking at the ins function in \autoref{lst:ins-fun},
+Looking at the \textit{ins} function in \autoref{lst:ins-fun},
 we see that in an inductive proof the main obligation
 is to argue for the choice of the subtree in case of recursion.
 Similar to the proof of \autoref{thm:isin-set},
@@ -689,50 +688,13 @@ which follows simply by induction on the list.
     $\sorted xs \wedge x \in \setfun xs \Longrightarrow \inslist x\ xs = xs$
 \end{lemma}
 
+The above lemmas are all we need to show correctness
+of the \textit{ins} function inductively.
+The theorem for \textit{insert} follows again automatically,
+which concludes the proof of the insertion part.
 
 \subsection{Deletion}
 
-% TODO delete
-% TODO move abstract discussion to introduction
-%-------------------------------------------------
-Generally, elements are removed from the leaves only.
-If the element to be deleted resides in an inner node,
-it is replaced by the maximal lesser or minimal greater
-element in the tree, which always resides in a leaf.
-
-After deletion, the nodes may need rebalancing in order
-to ensure the order property.
-A node having less than $k$ elements is called to have "underflow".
-However, opposing to the insertion function,
-the exact procedure to handle underflow varies strongly in the literature.
-Since only one element is removed from the node,
-the most intuitive remedy to underflow is to "steal" it back
-from the left or right sibling.\parencite{DBLP:books/daglib/0023376}
-If the left or right sibling has more than $k$ elements,
-one of the neighboring elements may be moved out for increasing
-the size of the current node.
-Only in case that both siblings have left only $k$ elements,
-a kind of reversal of the insertion split is conducted:
-One of the siblings and the node itself are merged to form
-a new, bigger node of valid order.
-
-Following the description of \parencite{DBLP:journals/acta/BayerM72},
-as done by \parencite{Fielding80},
-the two cases can be treated identically.
-If a node has less than $k$ elements,
-merge it with one of its siblings.
-% TODO note that someone(tm) said this is more efficient then stealing
-If the resulting node has more than $2k$ separators,
-it will be split in half again, just as if an overflow occurred.
-According to \parencite{DBLP:journals/csur/Comer79} this may even be more efficient than stealing single values.
-First of, the resulting node is less likely to underflow again.
-If it had stealt only one item, it would certainly underflow at the next
-deletion.
-Further, the node to merge with has to be read from memory anyways.
-The cost of moving around the memory
-is hence negligible compared to the cost of another underflow.
-
-%-------------------------------------------------
 
 \begin{figure}
 \begin{lstlisting}[mathescape=true, language=Isabelle,label={lst:rebalance-def},
@@ -763,7 +725,8 @@ fun rebalance_last_tree where
 \end{lstlisting}
 \end{figure}
 
-The described procedures are implemented here with a
+The procedures described in \autoref{par:intro-del}
+are implemented here with a
 certain flavor due to the setup of B-Trees.
 The "rebalancing" as implemented in \autoref{lst:rebalance-def}
 comprises merging and splitting neighboring nodes.

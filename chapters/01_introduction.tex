@@ -180,11 +180,18 @@ A common variation is the B$^+$-Tree, where the inner nodes
 only contain orientation yielding separators
 but all elements are eventually stored in the leaves. 
 \parencite{DBLP:journals/csur/Comer79}
+Note that usually B-Trees are supposed to implement a map-like
+structure, where each element is an index together with a pointer
+or some arbitrary additional data.
+However for the sake of keeping the implementation and proofs simple,
+and first showing the validity of the approach in this case,
+we say that B-Trees store some linearly ordered values
+that themselves form the elements of an concretized set.
 
 \subsection{Definitions}
 \label{sec:data_structure_defs}
 
-Every node contains a list of \textit{keys} (also \textit{separators}, index elements), and \textsf{subtrees},
+Every node contains a list of \textit{keys} (also \textit{separators}, index elements), and \textit{subtrees},
 that refer to further B-Trees.
 The length of this list is bounded by $k$.
 The separators and subtrees may be considered considered interleaved within a node,
@@ -241,7 +248,92 @@ A simple example B-Tree may be seen in \autoref{fig:btree-basic-nopair}
     \label{fig:btree-basic-nopair}
 \end{figure}
 
-\subsection{Desirable Properties}
+\subsection{B-Tree operations}
+
+The B-Tree is a dynamic data-structure and provides
+a number of operations to inspect or modify the stored data.
+Generally the operations are defined recursively on the nodes.
+The correct subtree may be found by inspecting the separators stored
+in the currently visited node.
+If the value that is being searched for is in the range of two
+adjacent separators, the tree in between is the correct for recursion. 
+The obvious corner cases are if the value is less than the
+minimal element or greater than the maximum element stored.
+In that case we recurse in either the first or the last subtree.
+The exact manner of inspection should in practice of course
+be efficient and will hence be kept abstract until \autoref{chapter:imp-set}.
+
+\paragraph{Retrieval}\label{par:intro-isin}
+Since the whole tree is sorted,
+checking whether certain elements are contained in the tree
+is simply conducted by recursing into the correct node
+in each level.
+Either the element is found directly or found at a lower level.
+If we reach a leaf node we know that the element is not contained in the tree.
+There is little variation on this algorithm so there is no need for comparison.
+
+% TODO move abstract discussion to introduction
+%-------------------------------------------------
+\paragraph{Insertion}\label{par:intro-ins}
+There is also much consensus in the literature on how to conduct insertion into a B-Tree.
+\parencite{DBLP:journals/csur/Comer79}
+%TODO citations
+%TODO relationship to other implementations (are there more?)
+Generally, an element is inserted into the nodes on the lowest level.
+In case that there is enough space left, the element is simply placed at the correct
+position in the list of separators.
+However if the node has more than $2k$ elements after this insertion,
+we need to split it and, passing the median to the parent node,
+recurse back upwards.
+We will see in \autoref{sec:abs-ins} how this can be
+elegantly expressed in a functional specification.
+%-------------------------------------------------
+
+% TODO delete
+% TODO move abstract discussion to introduction
+%-------------------------------------------------
+\paragraph{Deletion}\label{par:intro-del}
+On deletion, elements are removed from the leaves only.
+If the element to be deleted resides in an inner node,
+it is replaced by the maximal lesser or minimal greater
+element in the tree, which always resides in a leaf
+to the left or right of the element to be removed.
+
+After deletion, the nodes may need rebalancing in order
+to ensure the order property.
+A node having less than $k$ elements is called to have \textit{underflow}.
+However, opposing to the insertion function,
+the exact procedure to handle underflow varies strongly in the literature.
+Since only one element is removed from the node,
+the most intuitive remedy to underflow is to \textit{steal} or \textit{borrow} it
+from the left or right sibling.\parencite{DBLP:books/daglib/0023376}
+If the left or right sibling has more than $k$ elements,
+one of the neighboring elements may be moved out for increasing
+the size of the current node.
+Only in case that both siblings have left only $k$ elements,
+a kind of reversal of the insertion split is conducted:
+One of the siblings and the node itself are merged to form
+a new, bigger node of valid order.
+
+Following the description of \parencite{DBLP:journals/acta/BayerM72},
+as done by \parencite{Fielding80},
+the two cases can be treated identically.
+If a node has less than $k$ elements,
+merge it with one of its siblings.
+If the resulting catenated node has an overflow again,
+it will be split in half, just as with insertion related overflows.
+According to \parencite{DBLP:journals/csur/Comer79} this may even be
+more efficient than stealing single single keys from siblings.
+First of, the resulting node is less likely to underflow again.
+If it had stolen only one item, the probability for another underflow at the next
+deletion is higher than if several elements are copied over.
+Further, the node to merge with has to be read from memory anyways.
+The cost of moving around up to $k$ elements that already reside in memory
+is hence negligible compared to the cost of another underflow.
+
+%-------------------------------------------------
+
+\subsection{Properties}
 
 B-Trees are assumed to be stored on external memory,
 such that each node roughly matches a page in main memory.
@@ -257,11 +349,7 @@ where the average usage is usually higher. \parencite{DBLP:journals/acta/BayerM7
 This is due to the fact that every node reserves the storage of $2k$ keys and separators
 but by definition always contains at least $k$ elements.
 
-These properties are key to the widespread popularity of B-Trees and are
+B-Trees build the foundation to most modern relational database implementations.
+The above mentioned properties are key to the widespread popularity of B-Trees and are
 hence preserved in the given implementation.
-
-
-\subsection{Applications}
-
-B-Trees are used in almost all modern databases for storing key-value pairs.
 % TODO more

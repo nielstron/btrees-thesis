@@ -11,7 +11,7 @@
 It should be noted at this point that the obtained code is not yet
 truly optimized with respect to minimal memory allocation and access.
 For that, some further refinements are necessary.
-For example, the imperative \textsf{node$_i$} function
+For example, the imperative \textit{node$_i$} function
 requires temporarily allocating
 an array that has enough space to contain
 all elements that are supposed to be merged or split.
@@ -68,4 +68,13 @@ time invested and the amount of manually provided proofs.
     \label{fig:proof-comparison}
 \end{figure}
 
-\dots
+Finally it should be noted that this work implements B-Trees as
+concretizations of sets.
+However usually B-Trees are rather applied as concretizations
+of maps, for example mapping the unique primary keys
+of database tuples to the stored data.
+Future work could adjust the code and proofs given here
+to show that they can satisfy the map interface.
+The main difference would then be that not the indices
+are the main elements of the nodes but pairs of the 
+index and the corresponding data.

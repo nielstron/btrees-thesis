@@ -1,0 +1,71 @@
+% !TeX root = ../main.tex
+% Add the above to each chapter to make compiling the PDF easier in some editors.
+
+
+\chapter{Conclusions}\label{chapter:conclusion}
+
+% TODO note that node_i requires temporary allocation of an array that contains all elements.
+% it would be more efficient to derive a specialized version that takes two arrays
+% and redistributes between them evenly
+
+It should be noted at this point that the obtained code is not yet
+truly optimized with respect to minimal memory allocation and access.
+For that, some further refinements are necessary.
+For example, the imperative \textsf{node$_i$} function
+requires temporarily allocating
+an array that has enough space to contain
+all elements that are supposed to be merged or split.
+Optimizing it would maybe give a function that takes
+as an argument two arrays and redistributes elements between them,
+or an array and an element that is to be inserted.
+This naturally increases the required amount of additional,
+specialized heap rules and makes the proofs more complex.
+
+% TODO note that the proof for  sortedness has been reduced from 2000 lines
+% by the sorted (inorder ...) notation (and Nipkows auxiliary funs/lemmas)
+% comparison standard approach and list approach
+The proof of the standard set interface required a number of additional functions
+comprising 36 lines of code.
+The bigger part however is made up by the proofs required.
+Including additional auxiliary lemmas, the whole proof of sortedness
+and correct set operations required a staggering over 1900 lines of proof.
+The proof was complex and hardly readable due to the 
+extensive use of efficient solvers.
+This is opposing 5 lines for the inorder and sorted function and
+483 lines of proof required for the inorder approach,
+which is mostly composed of easily understandable chains of equations.
+
+% TODO comparison with other approaches
+Both Malecha and Gidon report the proof for invariants
+to be the most difficult properties to prove.
+In out approach, we were able to reason about the abstract invariants
+in the context of an abstracted specification,
+significantly simplifying proof reasoning.
+A difference can be observed in \label{fig:proof-comparison}
+both with respect to the amount of 
+time invested and the amount of manually provided proofs.
+
+\begin{figure}
+    \centering
+    \begin{tabular}{l|c|c|c}
+        \                & \parencite{DBLP:conf/popl/MalechaMSW10}$^{+}$ & \parencite{DBLP:journals/sosym/ErnstSR15}$^{+d}$ & Our approach \\
+        \hline
+        Functional code &   360      & \dots                 & 324  \\
+        Imperative code &   510      & \dots                 & 170  \\
+        Proofs          &  5190      & 350 + 1220\footnote{
+            The proof is done integrating TVLA and KIV, and hence comprises
+            interactive proofs and "interactions" with the automated prover.
+            The first number is the number of added rules.
+            The second number given here interprets each "interaction" as one apply-Style
+            command and hence one line of proof.
+        } & 2753 \\
+        Timeframe (months) &  -     & 6+                      & 3   \\
+    \end{tabular}
+    \caption{Comparison of Lines of Code and time investment in related mechanized B-Tree verifications.
+    $^+$ denotes implementations of B$^+$-Trees.
+    $^d$ denotes that the implementation additionally verifies deletion operations.
+    }
+    \label{fig:proof-comparison}
+\end{figure}
+
+\dots

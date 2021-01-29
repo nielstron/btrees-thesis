@@ -70,6 +70,28 @@ which is mostly composed of easily understandable chains of equations.
 % it would be more efficient to derive a specialized version that takes two arrays
 % and redistributes between them evenly
 
+% TODO this might be conclusion
+The actual proofs in this work have been written to use only
+minimal requirements on the input.
+For example in \autoref{lem:splitmax-inorder}, rather than
+requiring balancedness and $\order k$ for $k > 0$ on the full tree,
+it is only required that the node has at least two children,
+the last two have equal height
+and that the last tree has the same, recursive property.
+Using a more specific assumption was beneficial during the proof,
+as the less restrictive requirements turn up in the
+induction hypothesis again and are easier to satisfy that way.
+However this also called for more lemmas that show that
+the weaker property is satisfied in valid B-Trees.
+Nevertheless, generating the most general lemmas usually turned out to be
+very useful, for example in \autoref{lem:nodei-order}, yielding the reusability of $\node_i$ for
+merging two nodes in deletion.
+Another use case was the applicability of weaker properties
+even when temporary violations
+of the general invariant were observed during deletion,
+such as in the \textit{del} function in \autoref{lst:del-def}.
+%---------------------------------
+
 \section{Future Work and Comparisons}
 
 It should be noted at this point that the obtained code is not yet

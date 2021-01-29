@@ -76,6 +76,7 @@
 \let\div\relax
 \DeclareMathOperator{\div}{div}
 
+\DeclareMathOperator{\snd}{snd}
 \DeclareMathOperator{\nodes}{nodes}
 \DeclareMathOperator{\height}{height}
 \DeclareMathOperator{\length}{length}
@@ -107,6 +108,7 @@
 \DeclareMathOperator{\insertfun}{insert}
 \DeclareMathOperator{\inslist}{ins_{list}}
 \DeclareMathOperator{\dellist}{del_{list}}
+\DeclareMathOperator{\delfun}{del}
 \DeclareMathOperator{\deletefun}{delete}
 \DeclareMathOperator{\setfun}{set}
 
@@ -134,6 +136,8 @@
     map,%
     concat,%
     replicate,%
+    None,%
+    Some,%
 % basic defs
     subtrees,%
     separators,%
@@ -141,6 +145,8 @@
     length,%
     node,%
     nodes,%
+    Node,%
+    Leaf,%
     inorder,%
     inorder\_pair,%
     inorder\_list,%
@@ -166,6 +172,17 @@
     rebalance\_middle\_tree,%
     rebalance\_last\_tree,%
     split\_max,%
+% imp
+    list\_assn,%
+    btree\_assn,%
+    blist\_assn,%
+    id\_assn,%
+    is\_pfa,%
+    Btnode,%
+    split\_relation,%
+    lin\_split,%
+    bin\_split,%
+    imp\_split,%
 },emphstyle={\upshape}
 }
 

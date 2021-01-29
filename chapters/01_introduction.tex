@@ -52,17 +52,23 @@ The first rigorous approaches at it to our knowledge are the works by Fielding \
 and Sexton \parencite{DBLP:journals/entcs/SextonT08}.
 Both were not machine checked but shed light on both techniques applied in this work.
 Fielding approaches the verification by iterative refinement of an abstracted
-specification which we emply in \autoref{chapter:abs-set}.
+specification which we employ in \autoref{chapter:abs-set}.
 Sexton uses the sophisticated tool of separation logic to reason directly 
 on imperative specification, in a similar manner to our specification in \autoref{chapter:imp-set}.
-\parencite{DBLP:journals/sosym/ErnstSR15} also directly verify an imperative
-implementatione by combining interactive theorem proving 
+In the work of\parencite{DBLP:journals/sosym/ErnstSR15}
+an imperative implementation is also directly verified
+by combining interactive theorem proving 
 with shape analysis.
 The main recursive procedures interactively are interactively verified in KIV.
 Data structure properties such as circle-freeness are then proven by shape-analysis.
 Another direct proof on an imperative specification 
 can be found in \parencite{DBLP:conf/popl/MalechaMSW10}, with the YNOT
-extension to the interactive theroem prover Coq.
+extension to the interactive theorem prover Coq.
+To our knowledge, the preceding works comprise
+all published attempts at verifying implementations of B-Trees
+or the related data structure as B$^+$-Tree.
+No such verification has been found that explicitly covers
+the implementation of functional B-Trees.
 
 
 \section{The Isabelle Proof Assistant}
@@ -82,11 +88,11 @@ Functions, predicates and the like are all expressed in
 a functional manner.
 \textbf{definition} denotes classical definitions and \textbf{fun}
 is used for recursive definitions.
-The latter is only a valid definition if it incorporates an automatic proof of termination.
-Usually this proof is done automatically however.
+The latter is only a valid definition if it incorporates a proof of termination.
+Usually this proof is done automatically by the system.
 If a function evaluation does not terminate for all inputs
-it is denoted with \textbf{partial\_fun}.
-The term \textbf{abbreviation} refers to a simple shorthand for more complex expressions,
+it is denoted with \textbf{partial\_function}.
+The term \textbf{abbreviation} is used to define simple shorthands for more complex expressions,
 similar to a macro.
 
 Lemmas, theorems and the like can be expressed in a similar manner
@@ -173,13 +179,13 @@ as a data-structure to efficiently store and retrieve indices stored on storage 
 with slow memory access.
 They are $n$-ary balanced search trees, where each
 node contains many indices.
-The number of subtrees and indices in each node is defined by the \textit{order} $k$ of the tree.
+The number of subtrees and indices in each node is
+defined by the \textit{order} of the tree.
 % TODO reorder with definitions
 B-Trees are a generalization of 234-Trees and a specialization of (a,b)-Trees
 A common variation is the B$^+$-Tree, where the inner nodes
-only contain orientation yielding separators
-but all elements are eventually stored in the leaves. 
-\parencite{DBLP:journals/csur/Comer79}
+only contain separators to guide the recursive search
+but all data is stored in the leaves. \parencite{DBLP:journals/csur/Comer79}
 Note that usually B-Trees are supposed to implement a map-like
 structure, where each element is an index together with a pointer
 or some arbitrary additional data.
@@ -191,9 +197,9 @@ that themselves form the elements of an concretized set.
 \subsection{Definitions}
 \label{sec:data_structure_defs}
 
-Every node contains a list of \textit{keys} (also \textit{separators}, index elements), and \textit{subtrees},
+Every node contains a list of \textit{keys} (also \textit{separators}, \textit{index elements}), and \textit{subtrees} (\textit{children}),
 that refer to further B-Trees.
-The separators and subtrees may be considered considered interleaved within a node,
+The separators and subtrees may be considered interleaved within a node,
 such that we can speak of a subtree left of a separator and a subtree right of a separator,
 where for a separator at index $i$ we mean the subtree in the respective
 subtree list at index $i$ and $i+1$ respectively.
@@ -258,7 +264,7 @@ subtree that a node represents and the latter is left empty.
 \begin{figure}
     \centering
     \includegraphics[width=0.5\linewidth]{figures/btree-basic-nopair.pdf}
-    \caption{A small balanced B-Tree of order $2$ and
+    \caption{A small balanced, sorted B-Tree of order $2$ and
     height $2$ containing $3$ nodes and $6$ elements.
     Circles represent nodes, where empty circles are leafs and filled circles
     point to the corresponding subtree.}

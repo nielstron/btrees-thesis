@@ -10,36 +10,41 @@ However, the specification would not yield
 efficiently executable code.
 % main difference: specify allocation of data
 The reason is that the abstract specification works with
-the ephemeral datatypes of nodes and lists.
+the persistent datatypes of nodes and lists.
 This way, trivially no data is unknowingly
 modified or corrupted,
-however this is at the cost of computational efficiency.
+however this is at the cost of computational efficiency
+as changes require do allocate memory for completely new object.
+
 In order to obtain an efficient implementation
-on mutable objects,
+on ephemeral data structures common to imperative languages,
 we specify imperative code and show that
 it refines the abstract specification.
 The imperative code can then be translated to
-the languages Scala\parencite{OderskyScala} and SML\parencite{DBLP:books/daglib/0069232} using the code generation
-facilities in Isabelle/HOL\parencite{Haftmann20codegeneration}.
-Since these facilities are extensible, the code is not limited
+the languages Scala \parencite{OderskyScala} and SML \parencite{DBLP:books/daglib/0069232}
+using the code generation
+facilities in Isabelle/HOL \parencite{Haftmann20codegeneration}.
+However, since these facilities are extensible,
+code extraction is not limited
 to these languages.
 
 \section{Refinement to Imperative/HOL}
 
 The proofs of correct behavior for our imperative
-code are stated with separation logic in Isabelle/HOL.
+code are stated separation logic \parencite{DBLP:conf/lics/Reynolds02},
+an extension of Hoare Logic.
+It was formalized in Isabelle/HOL by \parencite{DBLP:journals/jar/Lammich19}
+and comes with a framework that simplifies reasoning about
+its expressions.
 
 \subsection{Separation Logic}
 
-The framework for separation logic in Isabelle/HOL was developed by
-\parencite{DBLP:journals/jar/Lammich19}.
-It provides a way to reason about mutable resources
+Separation logic provides a way to reason about mutable resources
 that lie in separated parts of an external heap,
 an abstracted memory device.
 The assumptions on the state of the heap are called \textit{assertions}.
 They are specified as formulae that hold for specific heap states.
-Assertions that are required to understand
-this work follow.
+The basic assertions used in this work follow.
 
 \begin{itemize}
     \item \textit{emp} holds for the empty heap
@@ -49,16 +54,21 @@ this work follow.
     an array representing $as$.
     \item $a \mapsto_r x$ holds if the heap at position $a$ is reserved and contains
     value $x$ where $x$ is of some type $'a::heap$
-    \item $\exists_A x. P x$ holds if there exists some $x$ such that predicate P
+    \item $\exists_A x.\ P\ x$ holds if there exists some $x$ such that predicate P
     holds on the heap for given $x$.
     \item $P_1 * P_2$ holds if each assertion holds on its part of the heap
     and the areas of the heap described by each assertion are non-overlapping
 \end{itemize}
 
+With the tools provided by separation logic,
+we well prove our imperative implementations correct
+by showing that they refine the abstract implementation in \autoref{chapter:abs-set}.
+
 In general, refinement relates a concrete data structure
 to an abstract structure via some refinement assertion.
-An example for such a refinement assertion are the id assertion and the
-list assertion, relating lists given a refinement
+Examples for such a refinement assertion are the id assertion and the
+list assertion.
+The latter relates lists, given a refinement
 assertion between the elements of the first and second list.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
@@ -66,35 +76,35 @@ definition id_assn a b = $\uparrow$(a = b)
 
 fun list_assn :: ('a $\Rightarrow$ 'c $\Rightarrow$ assn) $\Rightarrow$ 'a list $\Rightarrow$ 'c list $\Rightarrow$ assn where
   list_assn P [] [] = emp
-| list_assn P (a#as) (c#cs) = P a c * list_assn P as cs
+| list_assn P (x#xs) (y#ys) = P x y * list_assn P xs ys
 | list_assn _ _ _ = false
 \end{lstlisting}
 
-We can then specify Hoare Triples on assertions.
+We can then specify Hoare Triples on assertions,
+to encapsulate statements about imperative programs.
 
-\begin{definition}
+\begin{definition}{Hoare Triple}
     $\langle$ P $\rangle$ c $\langle \lambda r. $ Q r $\rangle$ \\
     holds iff if assertion $P$ holds on some heap before operation $c$
     is executed on the heap,
     and operation $c$ returns some $r$, then assertion $Q$ holds
-    on the modified heap for $r$.
+    for $r$ and on the modified heap
 \end{definition}
 
 A simple example Hoare Triple is 
 $\langle$ id\_assn $a$ $b$ $\rangle$ return $b$ $\langle \lambda r.$ id\_assn $a$ $r$ $\rangle$.
 In the refinement process, we will use more complex relationship assertions
-on the input $b$ to some object $ab$ and show that the value $r$ returned
+on the input $b$ to some object $bi$ and show that the value $r$ returned
 by the imperative program satisfies a relationship to the output of the refined
-function applied to $ab$.
+function applied to $bi$.
 Further we use the shorthand notation $\langle\ P\ \rangle\ c\ \langle \lambda r.\ Q\ r\ \rangle_t$
 which stands for $\langle\ P\ \rangle\ c\ \langle \lambda r.\ Q\ r\ * true\ \rangle$.
 Since $true$ holds for any heap, this part of the statement may be used to subsume
 all temporary and discarded variables.
 
 Refining all set operations from \autoref{chapter:abs-set}
-yields imperative code
-that stores data on the heap
-and operates with more efficient destructive updates.
+will yield imperative code that operates on the heap
+with option to use efficient destructive updates.
 We do not need to show that the operations themselves
 satisfy the requirements of the set interface.
 Instead we merely need to show that the imperative code
@@ -122,10 +132,11 @@ the data structure refining key-value lists.
 % TODO intended physical storing of B-Tree on pages of memory
 % --> partially filled array, non-dynamic!
 However, dynamic arrays are designed to grow and shrink
-as elements are inserted.
+as elements are inserted and deleted.
 B-Trees were invented to be stored on slow hard disks.
 As one disk access loads a chunk of data into a page of main memory,
-nodes of this size would make the most efficient use of the loading times. \parencite{DBLP:journals/acta/BayerM72}
+nodes of roughly this size make the most efficient use of the loading times.
+\parencite{DBLP:journals/acta/BayerM72}
 %TODO give clear reason
 Therefore the data structure to store the node content
 should reserve a fixed amount of data, independent
@@ -133,7 +144,8 @@ of the actual number of keys and children.
 
 Based on the definition of dynamic arrays in the 
 imperative collection framework,
-we therefore introduce a simple data structure
+we therefore introduce a simpler data structure,
+the \textit{partially filled array},
 that keeps count of currently inserted elements,
 but does neither grow nor shrink.
 Abstractly, we refine lists in the functional B-Trees to this
@@ -153,8 +165,12 @@ definition is_pfa where c l $\equiv$
 
 where $c$ is the $capacity$ of the array, that is the actual allocated size
 of the array on the heap.
-From the abstract specification alone
-it is not clear which operations are supposed to be conducted
+All references to lists in the abstract datatype $btree$
+will in the imperative version be refined to partially filled arrays.
+
+However one should note that
+from the set operation specification in \autoref{chapter:abs-set} alone
+it is not determined which operations are supposed to be conducted
 in-place and which will require copying data.
 To obtain the most efficient code we therefore manually
 define the following operations to replace complex composite
@@ -214,7 +230,7 @@ list is copied into another array.
 The operation to copy data is based on the function $blit$,
 that copies a slice of an array to the starting position of another array.
 The function already existed in the standard collection and could be reused
-to define the $pfa\_drop$ function in \autoref{lst:pfarray-def}, which in this implementation copies data to a new array.
+to define the \textit{pfa\_drop} function in \autoref{lst:pfarray-def}, which in this implementation copies data to a new array.
 
 The $blit$ function is however not capable of correctly copying data
 within the array, as required for efficient in-place insertion and deletion.
@@ -224,6 +240,7 @@ from higher to lower indices or from lower to higher indices.
 Depending on the direction of the copy, it is relevant
 in which order to copy singleton elements so that in case
 of overlapping ranges no elements are overwritten before being copied.
+
 By adding a function that copies elements in reverse order
 and conditionally calling either copy function,
 loss-free in-place copying was achieved.
@@ -233,17 +250,17 @@ in target languages.\footnote{
     See for example \href{https://caml.inria.fr/pub/docs/manual-ocaml/libref/Array.html}{the specification of \texttt{Array.blit} in Ocaml} or
     the \href{https://smlfamily.github.io/Basis/array-slice.html\#SIG:ARRAY_SLICE.copy:VAL}{\texttt{ArraySlice.copy} specification in SML}.
 }
-The $pfa\_insert$ function in \autoref{lst:pfarray-def} makes
+The \textit{pfa\_insert} function in \autoref{lst:pfarray-def} makes
 implicit use of in-place copying by calling a function to shift elements
 to the right by one.
 The element to be inserted is then placed in the remaining free spot.
 
 For all functions in \autoref{lst:pfarray-def},
-appropriate Hoare-Triples were derived.
+appropriate Hoare Triples were derived.
 All triples are straightforward to derive which is why they are not
 listed listed in great detail.
 To roughly sketch the obtained lemmas, the two examples
-\texttt{pfa\_drop} and \texttt{pfa\_shrink} are investigated below.
+\textit{pfa\_drop} and \textit{pfa\_shrink} are investigated below.
 The most important difference is whether
 the operations are destructive (in-place) or not.
 For most operations, the approach that required the least
@@ -299,8 +316,8 @@ Rather than actually storing nodes within lists,
 the B-Tree nodes are supposed to be stored in the heap,
 only storing pointers to other nodes in the element list.
 Since the Imperative Refinement Framework does not support null pointers,
-we store heap reference options instead.
-Thus None represents leafs or empty trees.
+B-Tree nodes are refined by heap reference \textit{options} instead.
+None represents leafs or empty trees.
 The physical B-Tree datatype does hence only need to cover the case
 of actually being an inner node.
 
@@ -310,8 +327,8 @@ datatype 'a btnode =
 \end{lstlisting}
 
 Note the similarity to \autoref{lst:btree-def},
-only that "btree" was replaced by "btnode ref option"
-and "list" was replaced by "pfarray".
+only that \textit{btree} was replaced by \textit{btnode ref option}
+and \textit{list} was replaced by \textit{pfarray}.
 
 An abstract B-Tree is represented by such a physical node
 if all references on subtrees represent the corresponding
@@ -344,7 +361,7 @@ Since the list assumption makes recursive use of the
 B-Tree assumption, this is however a very convenient
 way of expressing the desired relationship.
 
-Using the parameters of \texttt{is\_pfa},
+Using the parameters of \textit{is\_pfa},
 note that we can specify that every node of a B-Tree should have
 capacity for $2k$ elements.
 
@@ -427,11 +444,18 @@ of applying the abstract function.
 
 We begin with stating a simple matching Hoare Triple
 for the function.
-It follows by supplying the loop invariant,
-which is that all elements up to the current $i$
-are smaller than the partitioning element.
-Further the invariant contains the fact that the array stays unchanged.
-% TODO state loop invariant explicitely
+It follows by supplying the following loop invariant:
+
+\begin{itemize}
+    \item $\forall j<i. \snd (xs!j) < p$: All elements up to the current $i$
+        are smaller than the partitioning element.
+    \item $\uparrow(i \leq n)$: $i$ does not exceed the length of the array and
+    \item $\pfarraycap c\ xs\ (a,n)$: the array stays untouched by the operation
+\end{itemize}
+
+The measure for the loop is the difference $n-i$ which
+decrements by one in each iteration and stays positive.
+From this we obtain the Hoare Triple of the whole linear split.
 
 \begin{lemma}
     \begin{align*}
@@ -449,15 +473,20 @@ actually suffices to imply that there exists a split relation
 to the result of an abstract split function.
 Specifically, we use the abstract split function from
 \autoref{fig:linear_split}. %TODO or explain why a different function was used
+For the two cases of loop termination,
+either $i = n$, or $i < n$, we find that
+the abstract function will return the exact same split.
+
 This is great to know since the previous lemma
 follows directly from the computation and is closely related
-to the loop invariant.\footnote{
-    Another reason for excitement is that now we can specify an imperative B-Tree
-    specification without any reference to the abstraction.
-    We simply always use the well known split function in the abstraction
-    and only require a post condition similar to the one just shown
-    on the imperative split function.
-}
+to the loop invariant.
+\footnote{Another, albeit more theoretical,
+reason for excitement is that now we can specify an imperative B-Tree
+specification without any reference to the abstraction.
+We simply always use the well known split function in the abstraction
+and only require a post condition similar to the one just shown
+on the imperative split function.}
+This will simplify proofs for alternative imperative split functions.
 With this assurance we approach the binary split.
 
 The binary split in \autoref{lst:imp-binary-split} conducts a binary search on
@@ -495,17 +524,49 @@ which is the result.
 A detailed analysis of binary search algorithms
 may be found in \parencite{DBLP:journals/csedu/Montague91},
 which has served as an orientation for the derived algorithm.
-Since the introduction of products as list elements
-adds another layer of complexity for the simplifier.
-Therefore a binary split algorithm on lists that contain
+The main idea is that the algorithm iteratively
+narrows a window on the array in which the desired element may lie.
+In each step, the middle element of that window is inspected
+and either desired element is returned or the algorithm
+recurses into either left or right remaining subwindow.
+
+Since pairs as list elements
+add another layer of complexity for the simplifier,
+a binary split algorithm on lists that contain
 only single elements has been derived first.
-Surprisingly, obtaining the same Hoare Triple
-as for the linear split requires merely
-a slightly more complex loop invariant
-invocation of a number of algebraic lemmas.
-% TODO note/explain loop invariant?
-The additional requirement here is naturally
-that the list of separators must be sorted.
+After several small corrections,
+it was proven to be correct.
+The split function for lists of pairs was then defined
+and could be tackled by the same approach,
+using the below loop invariant.
+Note that the binary split works on two indices
+as states, the upper bound $h$ and the lower bound $l$.
+
+\begin{itemize}
+    \item $\forall j<l. \snd (xs!j) < p$: All elements up to the current $i$
+        are smaller than the partitioning element.
+    \item $h<n \rightarrow \snd (xs!h) < p$: If the upper bound is strictly less than the length
+    of the array, the element it points to is greater than the partioning element
+    \item $l \leq h$: The lower bound is always less or equal to the upper bound
+    \item $\uparrow(h \leq n)$: the upper bound does not exceed the length of the array and
+    \item $\pfarraycap c\ xs\ (a,n)$: again, the array stays untouched by the operation
+\end{itemize}
+
+In this case the window that is considered by the binary split
+provides for the loop measure, as $h-l$ is decreased by at least one in each step.
+Proving that this was the case was not the main issue,
+but more to find a correct formulation of the algorithm
+where this is actually true.
+
+Overall obtaining the same Hoare Triple
+as for the linear split required only
+this slightly more complex loop invariant
+and invocation of a number of algebraic lemmas.
+This was somewhat of a surprise as the functional
+version of a binary split is much harder to
+specify and analyse than a linear split.
+The additional requirement for the binary split is
+naturally that the list of separators must be sorted.
 
 \begin{lemma} $\sorted (\separators xs) \Longrightarrow$ \\
     \begin{align*}
@@ -530,14 +591,15 @@ the set operations.
 
 \subsection{The isin function}
 
-The imperative set operations do quite directly follow
-from the refinement the abstract operations.
+In general, the formulation of the imperative set operations
+do quite directly follow
+from the refinement of the abstract operations.
 Pointers need to be dereferenced, modified and updated.
 Functions such as length need to be called and have their result
 stored explicitly before use.
 Other than that, the definition of the imperative isin in \autoref{lst:imp-isin-fun}
 function should bare no surprises.
-Note that it makes use of the function \texttt{imp\_split}
+Note that it makes use of the function \textit{imp\_split}
 which is an arbitrary split function that has the Hoare Triple
 specified in \autoref{sec:imp-split}.
 
@@ -568,8 +630,16 @@ partial_function (heap) isin :: 'a btnode ref option $\Rightarrow$ 'a $\Rightarr
 \end{figure}
 
 The Hoare Triple to argue that this is a refinement of the abstract operation
-is as follows (where $abs\_split$ refers to some abstract implementation
-of the set operations from \autoref{chapter:abs-set}):
+follows.
+The convention for variables that refer to refined datatype
+is that they have the same name as the abstract datatype,
+with the postfix \textit{i}.
+For example below, the abstract \textit{btree} is referred to by $t$,
+however the refined \textit{btnode ref option} that represents it
+is called $ti$.
+To simplify notation, we simply assume that the set operations
+such as \textit{isin} are overloaded and refer to abstract or
+imperative version, depending on the parameter type.
 
 \begin{lemma} $\sorted (\inorder t) \Longrightarrow$ \\
 \begin{align*}
@@ -583,10 +653,11 @@ Note how, in contrast to the abstract specification,
 we need to also show that the imperative function does not modify the tree
 residing in the heap.
 The proof follows by induction on the computation of the abstract isin function.
+
 % TODO conclusion ?
 Inside a structured proof skeleton of the induction,
-proving the subgoals turned out to be the most
-appropriate in an apply style manner.
+proving the subgoals in apply style turned out to be the most
+appropriate.
 The only help that the separation automation tool required
 is a manually specification of the instantiation for existential quantifiers
 for applying the inductive hypothesis. 
@@ -675,20 +746,34 @@ the same pattern as the isin function.
 The only interesting part is whether and how often new memory is allocated.
 An excerpt of the ins function can be seen in \autoref{lst:imp-ins-fun}.
 The function includes some optimizations, such as not calling
-$node_i$ if the node is not overflowing.
-This is an optimization as otherwise $node_i$ in
+\textit{node$_i$} if the node is not overflowing.
+This is an optimization as otherwise \textit{node$_i$} in
 \autoref{lst:imp-nodei-fun} would always allocate a new B-Tree node
 rather than updating the current node in place.
 
 To prove that this optimization is valid, the only obligation
 is to show that the updated node itself is equivalent
-to the node returned by $node_i$.
+to the node returned by \textit{node$_i$}.
+
+\begin{lemma}$\length ts \leq 2k \Longrightarrow
+    \node_i k\ ts\ t = T_i (Node\ ts\ t)$
+\end{lemma}
+
 Since we are in the branch where the node contains less than $2k$
-elements, this is easy to show, providing some intermediate lemmas
+elements, this is easy to show, provided some intermediate lemmas
 that relate concrete node and abstract node in this context.
 Adding a lemma on the equivalence between abstract and imperative
-$node_i$, we finally obtain a lemma for ins by induction on the computation
-of the abstract $ins$ function.
+\textit{node$_i$}, we finally obtain a lemma for \textit{ins}
+by induction on the computation
+of the abstract \textit{ins} function.
+
+\begin{lemma} $\sorted (\inorder t) \Longrightarrow$ \\
+    \begin{align*}
+       \langle &\btreeassn k\ t\ ti\rangle \\
+               &\insfun k ti\ x \\
+       \langle \lambda r. &\btreeassn k\ (\insfun k\ t\ x) r\rangle_t
+    \end{align*}
+\end{lemma}
 
 The insertion function incorporates the function $\tree_i$
 in much the same way.
@@ -705,10 +790,10 @@ on the imperative insertion.
 \end{lemma}
 
 % TODO say something about k?
-%Note how we have the additional assumption that $k$ be positive. This was only required to show correct order in the abstract setting.
-%Here, the capacity of the root node needs to be specified.
-%And since the capacity has to be $2k$ and the node has to hold at least one element
-
+Note how we have the additional assumption that $k$ be positive.
+This was only required to show correct order in the abstract setting.
+Here, the capacity of the root node needs to be specified at initialization.
+And since the capacity has to be $2k$ and the node has to hold at least one element
 
 
 \subsection{Deletion}

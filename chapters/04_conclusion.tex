@@ -4,22 +4,53 @@
 
 \chapter{Conclusions}\label{chapter:conclusion}
 
-% TODO note that node_i requires temporary allocation of an array that contains all elements.
-% it would be more efficient to derive a specialized version that takes two arrays
-% and redistributes between them evenly
+In this work, we obtained an imperative implementation
+of B-Trees that is capable to handle queries whether a key is contained
+and queries to insert new keys.
+Concrete code has been obtained in the languages Scala and SML,
+where the code generator may simply be extended to support other languages.
+We have proven it functionally correct with the help of an abstract
+specification that is refined by the imperative code.
+The abstract specification fully implements
+a Set interface in Isabelle, also including deletion of elements.
 
-It should be noted at this point that the obtained code is not yet
-truly optimized with respect to minimal memory allocation and access.
-For that, some further refinements are necessary.
-For example, the imperative \textit{node$_i$} function
-requires temporarily allocating
-an array that has enough space to contain
-all elements that are supposed to be merged or split.
-Optimizing it would maybe give a function that takes
-as an argument two arrays and redistributes elements between them,
-or an array and an element that is to be inserted.
-This naturally increases the required amount of additional,
-specialized heap rules and makes the proofs more complex.
+
+\section{Working in Isabelle}
+
+One main source of frustration is finding the correct
+functions and lemmas to apply for proofs.
+While in natural proofs a certain kind of function and corresponding equalities can be
+expected to be known by the reader.
+However for machine checked proofs, as the only meaningful way,
+all used lemmas need to be provided.
+Now usually the Isabelle/HOL provides tools like sledgehammer
+or \textbf{find\_theorems} in order to find useful lemmas for the concrete situation.
+However each have their own drawbacks.
+
+If the goal is only to simplify a given expression but not to
+directly solve the result, sledgehammer is useless
+as it only returns the applied lemmas for a successfully finalized proof.
+This would have been especially useful for the apply style proofs of the
+imperative implementation, that was mainly comprised of simplification steps.
+Maybe the tools can be extended to return what lemmas lead to promising
+simplifications of the the goal term to provide additional input to the user.
+
+Secondly \textbf{find\_theorems} is useless if the current state
+is simplified too much to not perfectly match the required lemma anymore.
+As a concrete example, the $inorder$ of B-Trees was first defined
+with "foldr map \textit{$\dots$ ts []}".
+The proof system could not provide any useful lemmas on expressions of this form.
+However there exists the standart function $concat$ that
+simplifies to the above and has useful lemmas for catenation
+and splitting.
+It was only discovered close to the finalization of the thesis
+when more standard terms for employed functions were searched for.
+Since the available lemmas were key to a practical
+implementation of the inorder set interface,
+this meant a wasted workload of almost 2000 lines of additional proof.
+The lesson learnt is to always look for alternative or equivalent
+formulations of properties as well as lemmas,
+to see what kind of existing lemmas may be employed.
 
 % TODO note that the proof for  sortedness has been reduced from 2000 lines
 % by the sorted (inorder ...) notation (and Nipkows auxiliary funs/lemmas)
@@ -34,6 +65,26 @@ extensive use of efficient solvers.
 This is opposing 5 lines for the inorder and sorted function and
 483 lines of proof required for the inorder approach,
 which is mostly composed of easily understandable chains of equations.
+
+% TODO note that node_i requires temporary allocation of an array that contains all elements.
+% it would be more efficient to derive a specialized version that takes two arrays
+% and redistributes between them evenly
+
+\section{Future Work and Comparisons}
+
+It should be noted at this point that the obtained code is not yet
+truly optimized with respect to minimal memory allocation and access.
+For that, some further refinements are necessary.
+For example, the imperative \textit{node$_i$} function
+requires temporarily allocating
+an array that has enough space to contain
+all elements that are supposed to be merged or split.
+Optimizing it would maybe give a function that takes
+as an argument two arrays and redistributes elements between them,
+or an array and an element that is to be inserted.
+This naturally increases the required amount of additional,
+specialized heap rules and makes the proofs more complex.
+
 
 % TODO comparison with other approaches
 Both Malecha and Gidon report the proof for invariants

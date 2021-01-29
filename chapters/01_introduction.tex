@@ -193,7 +193,6 @@ that themselves form the elements of an concretized set.
 
 Every node contains a list of \textit{keys} (also \textit{separators}, index elements), and \textit{subtrees},
 that refer to further B-Trees.
-The length of this list is bounded by $k$.
 The separators and subtrees may be considered considered interleaved within a node,
 such that we can speak of a subtree left of a separator and a subtree right of a separator,
 where for a separator at index $i$ we mean the subtree in the respective
@@ -233,18 +232,36 @@ An even number of separators and trees plus one dangling last right tree maximiz
 the usage of such a page.
 
 The same ambiguity exists for the term \textit{Leaf} which we will define consistently with Knuth's definition \parencite{DBLP:books/lib/Knuth98a}
-to be an empty node, carrying no information.
-This is closest to the usual approach in functional programming.
+to be an empty node, carrying no information,
+rather than a node without children.
+This is close to the usual approach in functional programming,
+and will yield elegant recursive equations for our B-Tree operations.
 The lowest level of nodes hence contains a list of separators and
 list of pointers to leaves.
 
+Note that the B-Tree definition is only meaningful for positive $k$.
+For the case that $k$ is equal to 0,
+all elements of the tree would have exactly one subtree
+and no internal elements.
+For the root node this even leads to a contradictory state:
+It is required to contain at least 1 element.
+However as it should not have more than $2k = 0$ elements,
+this constraint cannot be satisfied.
+Requiring positive $k$ is consistent with the definitions
+in the literature consulted \parencite{DBLP:journals/acta/BayerM72,DBLP:journals/csur/Comer79,DBLP:books/daglib/0023376}
+
 % insert image of valid B-Tree
-A simple example B-Tree may be seen in \autoref{fig:btree-basic-nopair}
+A simple example B-Tree may be seen in \autoref{fig:btree-basic-nopair}.
+Nodes and Leafs are represented as circles, were the former points to the
+subtree that a node represents and the latter is left empty.
+
 \begin{figure}
     \centering
     \includegraphics[width=0.5\linewidth]{figures/btree-basic-nopair.pdf}
     \caption{A small balanced B-Tree of order $2$ and
-    height $2$ containing $3$ nodes and $6$ elements.}
+    height $2$ containing $3$ nodes and $6$ elements.
+    Circles represent nodes, where empty circles are leafs and filled circles
+    point to the corresponding subtree.}
     \label{fig:btree-basic-nopair}
 \end{figure}
 

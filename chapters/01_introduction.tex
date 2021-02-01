@@ -6,18 +6,20 @@
 
 An important topic in computer science is the study of the
 \textit{functional correctness} of an algorithm.
-It states whether an algorithm actually solves a problem
-in the intended way.
-This topic becomes especially interesting when it can be applied
-to directly executable code and is machine checked.
+It states whether an algorithm satisfies the a specified
+input/output behavior.
+This topic becomes especially interesting when a) it can be applied
+to directly executable code and b) it is machine checked.
 Unfortunately with both desirable additions, the tasks becomes
 significantly more complex.
-In an abstract specification we may abstract away many consideration
-an actual program has to be concerned with and are still
-left with the obligatino to show non-trivial properties.
-Furthermore for the concrete code we have to reason about specific low level
-decisions such as memory allocation or
-the eligibility of reusing variables.
+Even in an abstract specification, where topics such as
+memory management may be abstracted away,
+machine checked proofs of non-trivial properties
+are hard.
+Furthermore for concrete implementations,
+low-level decisions about memory allocation or
+the eligibility of reusing variables need to be
+reasoned about.
 In this thesis we provide a computer assisted proof for the functional
 correctness of an imperative implementation of the B-Tree data-structure
 and present how we dealt with the above mentioned issues.

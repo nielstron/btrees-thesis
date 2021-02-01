@@ -24,7 +24,9 @@
 \usepackage{booktabs}
 \usepackage[final]{microtype}
 \usepackage{caption}
+\usepackage{amsmath} % for own functions, needs to be imported before cleveref
 \usepackage[hidelinks]{hyperref} % hidelinks removes colored boxes around references and links
+\usepackage[nameinref]{cleveref} % nameinref makes the name of the reference i.e. "Section" clickable
 
 \bibliography{bibliography}
 
@@ -72,7 +74,6 @@
 \newtheorem{definition}[theorem]{Definition}
 
 % writing functions in math expressions
-\usepackage{amsmath}
 \let\div\relax
 \DeclareMathOperator{\div}{div}
 
@@ -189,3 +190,4 @@
 
 % for figures containing \circ
 \DeclareUnicodeCharacter{FFEE}{\ensuremath{\circ}}
+

@@ -73,7 +73,7 @@ which is mostly composed of easily understandable chains of equations.
 % TODO this might be conclusion
 The actual proofs in this work have been written to use only
 minimal requirements on the input.
-For example in \autoref{lem:splitmax-inorder}, rather than
+For example in \Cref{lem:splitmax-inorder}, rather than
 requiring balancedness and $\order k$ for $k > 0$ on the full tree,
 it is only required that the node has at least two children,
 the last two have equal height
@@ -84,12 +84,12 @@ induction hypothesis again and are easier to satisfy that way.
 However this also called for more lemmas that show that
 the weaker property is satisfied in valid B-Trees.
 Nevertheless, generating the most general lemmas usually turned out to be
-very useful, for example in \autoref{lem:nodei-order}, yielding the reusability of $\node_i$ for
+very useful, for example in \Cref{lem:nodei-order}, yielding the reusability of $\node_i$ for
 merging two nodes in deletion.
 Another use case was the applicability of weaker properties
 even when temporary violations
 of the general invariant were observed during deletion,
-such as in the \textit{del} function in \autoref{lst:del-def}.
+such as in the \textit{del} function in \Cref{lst:del-def}.
 %---------------------------------
 
 \section{Future Work and Comparisons}

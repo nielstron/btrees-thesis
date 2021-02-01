@@ -24,60 +24,71 @@ In this thesis we provide a computer assisted proof for the functional
 correctness of an imperative implementation of the B-Tree data-structure
 and present how we dealt with the above mentioned issues.
 
-In \autoref{chapter:introduction}, we introduce B-Trees and common variations
+In \Cref{chapter:introduction}, we introduce B-Trees and common variations
 on them.
 The variation that is most promising for our approach is chosen
 to be implemented.
 We first design a functional, abstract implementation.
 Together with a proof of its functional correctness,
-it is presented in \autoref{chapter:abs-set}.
+it is presented in \Cref{chapter:abs-set}.
 On this level, functional correctness is equivalent with the
 implementation of an abstract Set-interface,
 that requires retrieval, insertion and deletion operations.
-From there, an imperative implementation is derived in \autoref{chapter:imp-set}.
+From there, an imperative implementation is derived in \Cref{chapter:imp-set}.
 Its functional correctness is shown by proving that it refines the functional specification.
 Thus the proof obligation for the imperative implementation
 is reduced to a proof of equivalence between the output of the
 functional and the imperative implementation.
 This gives freedom for low-key optimizations with regard to a naive translation.
 Finally, we present learned lessons, compare the results with related work and suggest potential future
-research in \autoref{chapter:conclusion}
+research in \Cref{chapter:conclusion}
 
 % TODO related work?
 % mfp/fielding: not mechanized, different approaches
 % Ernst: more automation, but actually similar approach to ours (except for used structure)
 % Malecha: less automation, similar structure
 
-We realize that the verification of B-Trees or the related B$^+$-Trees
+We realize that the rigorous verification of B-Trees or the related B$^+$-Trees
 is a hard problem.
-The first rigorous approaches at it to our knowledge are the works by Fielding \parencite{Fielding80}
-and Sexton \parencite{DBLP:journals/entcs/SextonT08}.
-Both were not machine checked but shed light on both techniques applied in this work.
-Fielding approaches the verification by iterative refinement of an abstracted
-specification which we employ in \autoref{chapter:abs-set}.
-Sexton uses the sophisticated tool of separation logic to reason directly 
-on imperative specification, in a similar manner to our specification in \autoref{chapter:imp-set}.
-In the work of\parencite{DBLP:journals/sosym/ErnstSR15}
-an imperative implementation is also directly verified
+There exist two pen and paper proofs via the rigorous approach
+by Fielding \parencite{Fielding80} and Sexton \parencite{DBLP:journals/entcs/SextonT08}.
+Even though not machine checked, they shed light on techniques applied in this work.
+Fielding approaches the verification by iterative refinement.
+First, B-Trees are viewed as nested sets and insertion and queries
+are verified.
+The second step, considering B-Trees more concretely to contain
+sorted lists of children and keys, is then reduced to arguing
+that obtaining the correct subtree or key is equivalent in the sorted list
+and the set.
+In this work, we will start at the definition with lists in \Cref{chapter:abs-set}
+and refine to an imperative implementation with pointers and arrays in \Cref{chapter:imp-set}.
+We reason about the validity of this refinement via separation logic,
+the same tool as employed by Sexton \parencite{DBLP:journals/entcs/SextonT08}
+to reason directly on the imperative specification.
+
+Further, two machine checked imperative implementations of B$^+$-Trees exist.
+In the work of Ernst \parencite{DBLP:journals/sosym/ErnstSR15},
+an imperative implementation is directly verified
 by combining interactive theorem proving 
 with shape analysis.
-The main recursive procedures interactively are interactively verified in KIV.
+The main recursive procedures are interactively verified in KIV.
 Data structure properties such as circle-freeness are then proven by shape-analysis.
 Another direct proof on an imperative specification 
-can be found in \parencite{DBLP:conf/popl/MalechaMSW10}, with the YNOT
+was conducted by Malecha \parencite{DBLP:conf/popl/MalechaMSW10}, with the YNOT
 extension to the interactive theorem prover Coq.
 To our knowledge, the preceding works comprise
 all published attempts at verifying implementations of B-Trees
-or the related data structure as B$^+$-Tree.
-No such verification has been found that explicitly covers
+or the related data structure B$^+$-Tree.
+We know of no verification that explicitly covers
 the implementation of functional B-Trees.
-
+In addition to providing one, this work aims to show the benefits
+of taking this indirection via an intermediate, more abstract specification.
 
 \section{The Isabelle Proof Assistant}
 
 Isabelle/HOL is an interactive theorem prover that allows
 to reason, among other things, in Higher Order Logic.\parencite{DBLP:books/sp/NipkowPW02}
-It is built ML, which influences the syntax of functional
+It is built in ML, which influences the syntax of functional
 programs written in it.
 Isabelle code is portioned in so called theories,
 roughly being equal to a module in common languages.
@@ -88,21 +99,28 @@ typed functional programs and theorems with proofs.
 
 Functions, predicates and the like are all expressed in
 a functional manner.
-\textbf{definition} denotes classical definitions and \textbf{fun}
-is used for recursive definitions.
-The latter is only a valid definition if it incorporates a proof of termination.
-Usually this proof is done automatically by the system.
-If a function evaluation does not terminate for all inputs
-it is denoted with \textbf{partial\_function}.
+The keyword \textbf{definition} denotes classical definitions
+and \textbf{fun} is used for recursive definitions.
+The latter supports definition by pattern matching and
+is only a valid definition if it incorporates a proof of termination.
+Usually this proof is derived automatically by the system.
+If a termination can not be guaranteed for all inputs,
+a function may be defined via \textbf{partial\_function}.
+This is specifically the case for imperative programs
+that recurse on pointers, as circle free-ness cannot be guaranteed here.
+Partial definitions come at the inconvenience of no
+supported pattern matching \parencite{isabelleManual}.
 The term \textbf{abbreviation} is used to define simple shorthands for more complex expressions,
 similar to a macro.
 
 Lemmas, theorems and the like can be expressed in a similar manner
 as they would be written in mathematical textbook.
-They begin with i.e. \textbf{lemma}, followed by an
-expression or predicate and a proof that it holds.
+They begin with \textbf{lemma}, \textbf{theorem} or \textbf{corollary},
+followed by an expression or predicate and a proof.
 Wherever possible and readable, we will try to reflect the actual
-syntax of the Isabelle system.
+syntax of the Isabelle system, however compromise in order to
+keep the notation of obtained lemmata and theorems
+close to conventional notation.
 To prove a theorem correct, the system basically provides two different
 proof styles.
 
@@ -112,7 +130,7 @@ and tells the system which proof methods to apply to
 resolve each step.
 This method is usually preferred as it is more readable and usually
 faster on the system side.
-All complex proofs in \autoref{chapter:abs-set} are hence written in this style.
+All complex proofs in \Cref{chapter:abs-set} are hence written in this style.
 
 In the apply style, the user tells the system which proof method
 to apply to modify the current goal.
@@ -120,7 +138,7 @@ This is practical if the number of assumptions
 is high or the goal is large and writing the full terms
 out would be impractical.
 Since this is the case for the proofs of the imperative programs,
-almost all proofs in \autoref{chapter:imp-set} are written in this style.
+almost all proofs in \Cref{chapter:imp-set} are written in this style.
 In this work we will not present the proofs as written in the actual
 proof files but rather outline the structure of the proofs.
 
@@ -171,7 +189,7 @@ of which only certain properties are known,
 resulting in so-called \textbf{locales}.
 
 Further details on notation, proof techniques and more in Isabelle/HOL
-may be found in \parencite{DBLP:books/sp/NipkowPW02}.
+may be found in Chapter 1 of \parencite{DBLP:books/sp/NipkowK14}.
 
 
 \section{The B-Tree Data Structure}
@@ -187,7 +205,7 @@ defined by the \textit{order} of the tree.
 B-Trees are a generalization of 234-Trees and a specialization of (a,b)-Trees
 A common variation is the B$^+$-Tree, where the inner nodes
 only contain separators to guide the recursive search
-but all data is stored in the leaves. \parencite{DBLP:journals/csur/Comer79}
+but all data is stored in the leaves \parencite{DBLP:journals/csur/Comer79}.
 Note that usually B-Trees are supposed to implement a map-like
 structure, where each element is an index together with a pointer
 or some arbitrary additional data.
@@ -259,7 +277,7 @@ Requiring positive $k$ is consistent with the definitions
 in the literature consulted \parencite{DBLP:journals/acta/BayerM72,DBLP:journals/csur/Comer79,DBLP:books/daglib/0023376}
 
 % insert image of valid B-Tree
-A simple example B-Tree may be seen in \autoref{fig:btree-basic-nopair}.
+A simple example B-Tree may be seen in \Cref{fig:btree-basic-nopair}.
 Nodes and Leafs are represented as circles, were the former points to the
 subtree that a node represents and the latter is left empty.
 
@@ -286,7 +304,7 @@ The obvious corner cases are if the value is less than the
 minimal element or greater than the maximum element stored.
 In that case we recurse in either the first or the last subtree.
 The exact manner of inspection should in practice of course
-be efficient and will hence be kept abstract until \autoref{chapter:imp-set}.
+be efficient and will hence be kept abstract until \Cref{chapter:imp-set}.
 
 \paragraph{Retrieval}\label{par:intro-isin}
 Since the whole tree is sorted,
@@ -310,7 +328,7 @@ position in the list of separators.
 However if the node has more than $2k$ elements after this insertion,
 we need to split it and, passing the median to the parent node,
 recurse back upwards.
-We will see in \autoref{sec:abs-ins} how this can be
+We will see in \Cref{sec:abs-ins} how this can be
 elegantly expressed in a functional specification.
 %-------------------------------------------------
 

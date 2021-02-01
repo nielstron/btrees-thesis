@@ -62,7 +62,7 @@ The basic assertions used in this work follow.
 
 With the tools provided by separation logic,
 we well prove our imperative implementations correct
-by showing that they refine the abstract implementation in \autoref{chapter:abs-set}.
+by showing that they refine the abstract implementation in \Cref{chapter:abs-set}.
 
 In general, refinement relates a concrete data structure
 to an abstract structure via some refinement assertion.
@@ -102,7 +102,7 @@ which stands for $\langle\ P\ \rangle\ c\ \langle \lambda r.\ Q\ r\ * true\ \ran
 Since $true$ holds for any heap, this part of the statement may be used to subsume
 all temporary and discarded variables.
 
-Refining all set operations from \autoref{chapter:abs-set}
+Refining all set operations from \Cref{chapter:abs-set}
 will yield imperative code that operates on the heap
 with option to use efficient destructive updates.
 We do not need to show that the operations themselves
@@ -169,7 +169,7 @@ All references to lists in the abstract datatype $btree$
 will in the imperative version be refined to partially filled arrays.
 
 However one should note that
-from the set operation specification in \autoref{chapter:abs-set} alone
+from the set operation specification in \Cref{chapter:abs-set} alone
 it is not determined which operations are supposed to be conducted
 in-place and which will require copying data.
 To obtain the most efficient code we therefore manually
@@ -230,7 +230,7 @@ list is copied into another array.
 The operation to copy data is based on the function $blit$,
 that copies a slice of an array to the starting position of another array.
 The function already existed in the standard collection and could be reused
-to define the \textit{pfa\_drop} function in \autoref{lst:pfarray-def}, which in this implementation copies data to a new array.
+to define the \textit{pfa\_drop} function in \Cref{lst:pfarray-def}, which in this implementation copies data to a new array.
 
 The $blit$ function is however not capable of correctly copying data
 within the array, as required for efficient in-place insertion and deletion.
@@ -250,12 +250,12 @@ in target languages.\footnote{
     See for example \href{https://caml.inria.fr/pub/docs/manual-ocaml/libref/Array.html}{the specification of \texttt{Array.blit} in Ocaml} or
     the \href{https://smlfamily.github.io/Basis/array-slice.html\#SIG:ARRAY_SLICE.copy:VAL}{\texttt{ArraySlice.copy} specification in SML}.
 }
-The \textit{pfa\_insert} function in \autoref{lst:pfarray-def} makes
+The \textit{pfa\_insert} function in \Cref{lst:pfarray-def} makes
 implicit use of in-place copying by calling a function to shift elements
 to the right by one.
 The element to be inserted is then placed in the remaining free spot.
 
-For all functions in \autoref{lst:pfarray-def},
+For all functions in \Cref{lst:pfarray-def},
 appropriate Hoare Triples were derived.
 All triples are straightforward to derive which is why they are not
 listed listed in great detail.
@@ -326,7 +326,7 @@ datatype 'a btnode =
     Btnode ('a btnode ref option*'a) pfarray 'a btnode ref option
 \end{lstlisting}
 
-Note the similarity to \autoref{lst:btree-def},
+Note the similarity to \Cref{lst:btree-def},
 only that \textit{btree} was replaced by \textit{btnode ref option}
 and \textit{list} was replaced by \textit{pfarray}.
 
@@ -404,9 +404,9 @@ a good split function.
 %TODO move to after the set operations?
 
 In the imperative context, we prefer not to directly
-implement the recursive function from \autoref{fig:linear_split}
+implement the recursive function from \Cref{fig:linear_split}
 but we embark on the exercise of using a while loop.
-The implementation in \autoref{lst:imp-linear-split}
+The implementation in \Cref{lst:imp-linear-split}
 is very basic but good for getting to know
 the usage of while loops in imperative HOL.
 Every iteration, an index on the array is moved forward by one.
@@ -472,7 +472,7 @@ For unexciting reasons, this post condition
 actually suffices to imply that there exists a split relation
 to the result of an abstract split function.
 Specifically, we use the abstract split function from
-\autoref{fig:linear_split}. %TODO or explain why a different function was used
+\Cref{fig:linear_split}. %TODO or explain why a different function was used
 For the two cases of loop termination,
 either $i = n$, or $i < n$, we find that
 the abstract function will return the exact same split.
@@ -489,7 +489,7 @@ on the imperative split function.}
 This will simplify proofs for alternative imperative split functions.
 With this assurance we approach the binary split.
 
-The binary split in \autoref{lst:imp-binary-split} conducts a binary search on
+The binary split in \Cref{lst:imp-binary-split} conducts a binary search on
 the list of elements.
 Rather than walking through the array,
 it narrows down a windows on the array that becomes smaller with
@@ -597,11 +597,11 @@ from the refinement of the abstract operations.
 Pointers need to be dereferenced, modified and updated.
 Functions such as length need to be called and have their result
 stored explicitly before use.
-Other than that, the definition of the imperative isin in \autoref{lst:imp-isin-fun}
+Other than that, the definition of the imperative isin in \Cref{lst:imp-isin-fun}
 function should bare no surprises.
 Note that it makes use of the function \textit{imp\_split}
 which is an arbitrary split function that has the Hoare Triple
-specified in \autoref{sec:imp-split}.
+specified in \Cref{sec:imp-split}.
 
 \begin{figure}
 \begin{lstlisting}[mathescape=true, language=Isabelle, label={lst:imp-isin-fun},
@@ -744,11 +744,11 @@ definition insert :: nat $\Rightarrow$ ('a::{heap,default,linorder}) $\Rightarro
 The imperative implementation and derived heap rule of the insertion function follow
 the same pattern as the isin function.
 The only interesting part is whether and how often new memory is allocated.
-An excerpt of the ins function can be seen in \autoref{lst:imp-ins-fun}.
+An excerpt of the ins function can be seen in \Cref{lst:imp-ins-fun}.
 The function includes some optimizations, such as not calling
 \textit{node$_i$} if the node is not overflowing.
 This is an optimization as otherwise \textit{node$_i$} in
-\autoref{lst:imp-nodei-fun} would always allocate a new B-Tree node
+\Cref{lst:imp-nodei-fun} would always allocate a new B-Tree node
 rather than updating the current node in place.
 
 To prove that this optimization is valid, the only obligation

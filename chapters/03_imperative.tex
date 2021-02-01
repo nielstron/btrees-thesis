@@ -157,7 +157,7 @@ Formally,
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 
-typedef 'a pfarray = 'a array $\times$ nat
+datatype 'a pfarray = 'a array $\times$ nat
 
 definition is_pfa where c l $\equiv$
     $\lambda$(a,n). $\exists_A$ l'. a $\mapsto_a$ l' *  $\uparrow$(c = length l' $\wedge$ n $\le$ c $\wedge$ l = (take n l'))
@@ -717,12 +717,12 @@ partial_function (heap) ins :: nat $\Rightarrow$ 'a $\Rightarrow$ 'a btnode ref 
             (Up$_i$ lp x' rp) $\Rightarrow$ do { 
               pfa_set (kvs a) i (rp,sep); 
               if tsl < 2*k then do { 
-                  kvs' $\leftarrow$ pfa_insert (kvs a) i (lp,x'); 
-                  ap := (Btnode kvs' (last a)); 
+                  ts' $\leftarrow$ pfa_insert (kvs a) i (lp,x'); 
+                  ap := (Btnode ts' (last a)); 
                   return (T$_i$ apo) 
               } else do { 
-                kvs' $\leftarrow$ pfa_insert_grow (kvs a) i (lp,x'); 
-                node$_i$ k kvs' (last a) 
+                ts' $\leftarrow$ pfa_insert_grow (kvs a) i (lp,x'); 
+                node$_i$ k ts' (last a) 
         } } } } else $\dots$
 
 definition insert :: nat $\Rightarrow$ ('a::{heap,default,linorder}) $\Rightarrow$ 'a btnode ref option $\Rightarrow$ 'a btnode ref option Heap
@@ -731,8 +731,8 @@ definition insert :: nat $\Rightarrow$ ('a::{heap,default,linorder}) $\Rightarro
   case ti' of
      T$_i$ sub $\Rightarrow$ return sub |
      Up$_i$ l a r $\Rightarrow$ do {
-        kvs $\leftarrow$ pfa_init (2*k) (l,a) 1;
-        t' $\leftarrow$ ref (Btnode kvs r);
+        ts' $\leftarrow$ pfa_init (2*k) (l,a) 1;
+        t' $\leftarrow$ ref (Btnode ts' r);
         return (Some t')
       }
 }

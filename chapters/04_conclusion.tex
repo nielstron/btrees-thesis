@@ -40,7 +40,7 @@ is simplified too much to not perfectly match the required lemma anymore.
 As a concrete example, the $inorder$ of B-Trees was first defined
 with "foldr map \textit{$\dots$ ts []}".
 The proof system could not provide any useful lemmas on expressions of this form.
-However there exists the standart function $concat$ that
+However there exists the standard function $concat$ that
 simplifies to the above and has useful lemmas for catenation
 and splitting.
 It was only discovered close to the finalization of the thesis
@@ -84,7 +84,7 @@ induction hypothesis again and are easier to satisfy that way.
 However this also called for more lemmas that show that
 the weaker property is satisfied in valid B-Trees.
 Nevertheless, generating the most general lemmas usually turned out to be
-very useful, for example in \Cref{lem:nodei-order}, yielding the reusability of $\node_i$ for
+very useful, for example in \Cref{lem:nodei-order}, yielding the reusability of $node_i$ for
 merging two nodes in deletion.
 Another use case was the applicability of weaker properties
 even when temporary violations

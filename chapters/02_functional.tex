@@ -457,13 +457,14 @@ Further if the elements came in sorted order,
 the list is split such that the key to the left is strictly less than the desired value
 and the key to the right should be less or equal.
 
-The benefit of restricting the sortedness of the list only to its separators
-simplifies the proofs of showing that a certain function fulfils the split abstraction.
-We really only need to consider the separators on each level and not the subtrees themselves.
-Showing that the function works on a sorted inorder list
-would only introduce an additional step to follow that the separators are sorted as well.
-Having fixated this abstraction we only need to follow this fact once
-and can relieve the writer of split functions of the need to do so.
+Note how the split function really only needs to
+consider the separators and not the subtrees themselves.
+By requiring only sortedness of the separators,
+we simplify the proofs of showing that a certain function
+fulfils the split abstraction.
+If the whole tree is sorted, the separators are sorted too.
+We prove this once and from it follows that
+we may use the split function for sorted trees as well.
 
 The abstraction was formulated in a locale.
 Inside the locale we have access to exactly the specified split function,

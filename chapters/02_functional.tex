@@ -68,7 +68,8 @@ datatype 'a btree = Leaf | Node (( 'a btree * 'a ) list) ('a btree)
 \begin{figure}
     \centering
     \includegraphics[width=0.5\linewidth]{figures/btree-basic.pdf}
-    \caption{The B-Tree from figure \Cref{fig:btree-basic-nopair}.
+    \caption[Visualization of the implementation choice for B-Trees]
+    {The B-Tree from figure \Cref{fig:btree-basic-nopair} as concretely specified.
     Subtrees and separators that lie in pairs in the implementation are surrounded by brackets.}
     \label{fig:btree-basic}
 \end{figure}
@@ -436,8 +437,9 @@ fun linear_split_help where
 fun linear_split:: ('a btree$\times$'a) list $\Rightarrow$ 'a $\Rightarrow$ (_ list $\times$ _ list) where
   linear_split xs x = linear_split_help xs x []
 \end{lstlisting}
-\caption{A function implementing the split function specifications.
-It scans linearly through the list, returning the first tuple where the separator
+\caption[An implementation of the abstract split function specifications.]
+{An implementation of the abstract split function specifications.
+This functions scans linearly through the list, returning the first tuple where the separator
 or subtree could potentially contain the value $x$}
 \label{fig:linear_split}
 
@@ -653,7 +655,8 @@ fun insert::nat $\Rightarrow$ 'a $\Rightarrow$ 'a btree $\Rightarrow$ 'a btree w
     \includegraphics[width=0.48\linewidth]{figures/btree-basic-ins9.pdf}\\
     \vspace*{1cm}
     \includegraphics[width=0.48\linewidth]{figures/btree-basic-ins9-ins1.pdf}
-    \caption{The tree from \Cref{fig:btree-basic} after 
+    \caption[An example B-Tree after two insertion operations]
+    {The tree from \Cref{fig:btree-basic} after 
     successive insertion of $9$ (top) and $1$ (bottom).}
     \label{fig:btree-basic-ins}
 \end{figure}
@@ -739,6 +742,7 @@ have order $k$, for which preservation was already proven.
 Putting things together, we obtain preservation of the invariants.
 
 \begin{theorem}
+    \label{thm:ins-invar}
     $\order^r_k t \wedge \bal t \Longrightarrow
     \order^r_k (\insertfun_k x\ t) \wedge \bal (\insertfun_k x t)$
 \end{theorem}
@@ -942,7 +946,7 @@ fun delete where delete k x t = reduce_root (del k x t)
     \includegraphics[width=0.48\linewidth]{figures/btree-basic-ins9-ins1-del10.pdf}\\
     \vspace*{1cm}
     \includegraphics[width=0.48\linewidth]{figures/btree-basic-ins9-ins1-del10-del3.pdf}
-    \caption{The tree from \Cref{fig:btree-basic-ins} after 
+    \caption[An example B-Tree after two deletion operations]{The tree from \Cref{fig:btree-basic-ins} after 
     successive deletion of $10$ (top) and $3$ (bottom).
     Note how the final result differs from approaches that would only steal single elements
     from neighbors to hanlde underflow.}

@@ -24,10 +24,9 @@ In this thesis we provide a computer assisted proof for the functional
 correctness of an imperative implementation of the B-Tree data-structure
 and present how we dealt with the above mentioned issues.
 
-In \Cref{chapter:introduction}, we introduce B-Trees and common variations
-on them.
-The variation that is most promising for our approach is chosen
-to be implemented.
+In \Cref{chapter:introduction}, we have a brief overview on related
+work and introduce common variations of the definition of B-Trees.
+We choose to implement the definition that is most promising for our approach.
 We first design a functional, abstract implementation.
 Together with a proof of its functional correctness,
 it is presented in \Cref{chapter:abs-set}.
@@ -48,41 +47,6 @@ research in \Cref{chapter:conclusion}
 % Ernst: more automation, but actually similar approach to ours (except for used structure)
 % Malecha: less automation, similar structure
 
-We realize that the rigorous verification of B-Trees or the related B$^+$-Trees
-is a hard problem.
-There exist two pen and paper proofs via the rigorous approach
-by Fielding \parencite{Fielding80} and Sexton \parencite{DBLP:journals/entcs/SextonT08}.
-Even though not machine checked, they shed light on techniques applied in this work.
-Fielding approaches the verification by iterative refinement.
-First, B-Trees are viewed as nested sets and insertion and queries
-are verified.
-The second step, considering B-Trees more concretely to contain
-sorted lists of children and keys, is then reduced to arguing
-that obtaining the correct subtree or key is equivalent in the sorted list
-and the set.
-In this work, we will start at the definition with lists in \Cref{chapter:abs-set}
-and refine to an imperative implementation with pointers and arrays in \Cref{chapter:imp-set}.
-We reason about the validity of this refinement via separation logic,
-the same tool as employed by Sexton \parencite{DBLP:journals/entcs/SextonT08}
-to reason directly on the imperative specification.
-
-Further, two machine checked imperative implementations of B$^+$-Trees exist.
-In the work of Ernst \parencite{DBLP:journals/sosym/ErnstSR15},
-an imperative implementation is directly verified
-by combining interactive theorem proving 
-with shape analysis.
-The main recursive procedures are interactively verified in KIV.
-Data structure properties such as circle-freeness are then proven by shape-analysis.
-Another direct proof on an imperative specification 
-was conducted by Malecha \parencite{DBLP:conf/popl/MalechaMSW10}, with the YNOT
-extension to the interactive theorem prover Coq.
-To our knowledge, the preceding works comprise
-all published attempts at verifying implementations of B-Trees
-or the related data structure B$^+$-Tree.
-We know of no verification that explicitly covers
-the implementation of functional B-Trees.
-In addition to providing one, this work aims to show the benefits
-of taking this indirection via an intermediate, more abstract specification.
 
 \section{The Isabelle Proof Assistant}
 
@@ -202,17 +166,24 @@ node contains many indices.
 The number of subtrees and indices in each node is
 defined by the \textit{order} of the tree.
 % TODO reorder with definitions
+
 B-Trees are a generalization of 234-Trees and a specialization of (a,b)-Trees
-A common variation is the B$^+$-Tree, where the inner nodes
+
+A commonly implemented variation is the B$^+$-Tree, where the inner nodes
 only contain separators to guide the recursive search
 but all data is stored in the leaves \parencite{DBLP:journals/csur/Comer79}.
-Note that usually B-Trees are supposed to implement a map-like
-structure, where each element is an index together with a pointer
+Further the leaves are often implemented so as to contain pointers
+to the next leaf in order, allowing for efficient range queries.
+Also usually B-Trees are supposed to implement a map-like
+structure, where each element is actually an index together with a pointer
 or some arbitrary additional data.
-However for the sake of keeping the implementation and proofs simple,
-and first showing the validity of the approach in this case,
-we say that B-Trees store some linearly ordered values
-that themselves form the elements of an concretized set.
+
+However we will not consider these more implementation centered
+additions and first show the validity of our approach
+with a more abstract variant of the B-Tree.
+We say that B-Trees store some linearly ordered values
+that could be stored in an abstract set, and the B-Tree is the concretization
+of this set.
 
 \subsection{Definitions}
 \label{sec:data_structure_defs}
@@ -284,7 +255,7 @@ subtree that a node represents and the latter is left empty.
 \begin{figure}
     \centering
     \includegraphics[width=0.5\linewidth]{figures/btree-basic-nopair.pdf}
-    \caption{A small balanced, sorted B-Tree of order $2$ and
+    \caption[A small example B-Tree]{A small balanced, sorted B-Tree of order $2$ and
     height $2$ containing $3$ nodes and $6$ elements.
     Circles represent nodes, where empty circles are leafs and filled circles
     point to the corresponding subtree.}
@@ -396,3 +367,67 @@ B-Trees build the foundation to most modern relational database implementations.
 The above mentioned properties are key to the widespread popularity of B-Trees and are
 hence preserved in the given implementation.
 % TODO more
+
+\section{Related Work}
+
+All found related work considers B$^+$-Trees
+rather than B-Trees, however some parallels can be found.
+
+There exist two pen and paper proofs via the rigorous approach
+by Fielding \parencite{Fielding80} and Sexton \parencite{DBLP:journals/entcs/SextonT08}.
+Even though not machine checked, they shed light on techniques applied in this work.
+
+Fielding approaches the verification by refinement.
+First, B$^+$-Trees are viewed as nested sets of subtrees
+or as leafs that are sets of key-value pairs.
+Obtaining the correct subtree for recursion is in the abstract setting
+only defined by appropriate pre and post-condition
+and an actually executable function is provided in the second refinement step.
+On this level, only arguments on the invariants are made.
+In a second step B-Trees are considered more concretely to contain
+sorted lists of children and keys.
+Here the argument for invariant preservation is due to the implementation
+having the same structure as the implementation in the abstract context.
+Final imperative PASCAL code is given, derived by hand
+imitating the functional style implementations and extended by assertions.
+
+This approach is similar to what will be done in this work,
+however mostly concerning the methodology rather than the actual
+steps of refinement.
+In this work, we will start at the definition using lists in \Cref{chapter:abs-set}
+and refine to an imperative implementation with pointers and arrays in \Cref{chapter:imp-set}.
+The code we obtain will be exported automatically to a functional language of choice.
+
+We reason about the validity of this refinement via separation logic,
+the same tool as employed by Sexton \parencite{DBLP:journals/entcs/SextonT08}.
+They show in their work that this tool allows to reason based on some kind of locality,
+in particular that operations on subtrees are really only affecting subtrees.
+We will make implicit use of this property in \Cref{chapter:imp-set}
+for proofs on our imperative implementation.
+
+The specification by Sexton is given as an abstract machine rules,
+somewhat more abstract than pure code but operating on a stack
+much like we expect imperative programs to operate with pointers on a heap.
+We therefore categorize this as a direct proof on an imperative implementation.
+
+Of these imperative implementations, also two machine checked proofs exist.
+In the work of Ernst \parencite{DBLP:journals/sosym/ErnstSR15},
+an imperative implementation is directly verified
+by combining interactive theorem proving 
+with shape analysis.
+The main recursive procedures are interactively verified in KIV.
+Data structure properties such as circle-freeness are then proven by shape-analysis.
+Another direct proof on an imperative specification 
+was conducted by Malecha \parencite{DBLP:conf/popl/MalechaMSW10}, with the YNOT
+extension to the interactive theorem prover Coq.
+Both works use recursively defined "shape" predicates
+that describe how the nodes and pointers
+form a bounded and circle free abstract tree.
+However, we know of no verification that explicitly covers
+the implementation of functional B-Trees.
+In addition to providing one, this work aims to show the benefits
+of taking this indirection for imperative implementations.
+That is that the analysis of invariants of an abstract shape may be spared
+or at least significantly simplified when
+restricting the concrete pointer structures to be refinements
+of an abstract algebraic type.

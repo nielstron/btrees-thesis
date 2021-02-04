@@ -781,19 +781,47 @@ Here the proof of equivalence followed automatically.
 With the hoare rule for $ins$, we obtain the final desired lemma
 on the imperative insertion.
 
-\begin{lemma} $k > 0 \wedge \sorted (\inorder t) \Longrightarrow$ \\
+\begin{theorem} $k > 0 \wedge \sorted (\inorder t) \Longrightarrow$ \\
 \begin{align*}
    \langle &\btreeassn k\ t\ ti\rangle \\
            &\insertfun k\ x\ ti \\
-   \langle \lambda r. &\btreeassn k\ (\insertfun k\ x\ t)\ r\rangle_t
+   \langle \lambda ri. &\btreeassn k\ (\insertfun k\ x\ t)\ ri\rangle_t
 \end{align*}
-\end{lemma}
+\label{thm:imp-ins-rule}
+\end{theorem}
 
 % TODO say something about k?
 Note how we have the additional assumption that $k$ be positive.
 This was only required to show correct order in the abstract setting.
 Here, the capacity of the root node needs to be specified at initialization.
 And since the capacity has to be $2k$ and the node has to hold at least one element
+
+Until now we have only shown that the concrete
+implementations refine the abstract interpretations.
+What does this bring concretely?
+Do we have to finally resort to an informal proof to show that the result
+satisfies the desired properties?
+This is not the case.
+The theorem that would likely be desired by a purist\footnote{
+    Admittedly, a purist that accepts our alternative Set interface.
+    However this interface was shown to implement the standard Set interface
+    so this should not really be an issue.
+} would be the following
+
+\begin{corollary} $k > 0 \Longrightarrow$
+\begin{align*}
+   \langle &\btreeassn k\ t\ ti \wedge \btree_k t \rangle \\
+           &\insertfun k\ x\ ti \\
+   \langle \lambda ri. \exists_A r. &\btreeassn k\ r\ ri \wedge \btree_k r \wedge \inorder r = \inslist x\ (\inorder t)\rangle_t
+\end{align*}
+\end{corollary}
+
+And indeed, this can be derived automatically with a single command invocation,
+using \Cref{thm:imp-ins-rule}, \Cref{thm:ins-set} and \Cref{thm:ins-invar}.\footnote{
+    Technically we also need the fact that ins$_{list}$ preserves sortedness.
+    This was already proven by Nipkow \parencite{DBLP:conf/itp/Nipkow16}
+    and is considered trivial here.
+}
 
 
 \subsection{Deletion}

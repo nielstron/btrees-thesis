@@ -14,14 +14,22 @@ specification that is refined by the imperative code.
 The abstract specification fully implements
 a Set interface in Isabelle, also including deletion of elements.
 
+\section{Working in Isabelle}
+
 An overview on the resulting theory modules
 and their relationship to external modules and one another
 can be seen in \Cref{fig:thm-relationships}.
 The given graphic roughly resembles the actual file structure.
+It can be seen that in order to develop this project
+not many general lemmas and definitions had to be added to the library.
+The library of proofs considered here
+is the one provided by the Isabelle/HOL framework together with the \textit{Archive of Formal Proofs}.
+The latter is a refereed collection of proofs that contains, among others,
+the separation logic framework.
 
 \begin{figure}
     \centering
-    \includegraphics[width=\linewidth]{figures/theories-relationship.pdf}
+    \includegraphics[width=1.1\linewidth]{figures/theories-relationship.pdf}
     \caption[An overview on the theories comprised by this work
     and their approximate relationship.]{
     An overview on the theories comprised by this work
@@ -31,8 +39,6 @@ The given graphic roughly resembles the actual file structure.
     Theories created or significantly extended in the course of this work are outlined with a continuous line.}
     \label{fig:thm-relationships}
 \end{figure}
-
-\section{Working in Isabelle}
 
 One main source of frustration is finding the correct
 functions and lemmas to apply for proofs.

@@ -3,32 +3,40 @@
 
 The B-Tree data structure is a classical data structure
 that lays the foundation of many modern database systems.
-Since its first definition in \parencite{DBLP:journals/acta/BayerM72}
-variations of definition and basic operations have been developed,
-the more complex operation deletion is spared by many
-standard references.
-The original definition and modern variants are examined and compared
-with mechanically verified versions of the data structure.
-A functional version of the B-Tree
-was implemented in the Isabelle/HOL framework, an interactive automated theorem prover.
+Since its first definition by Bayer \parencite{DBLP:journals/acta/BayerM72}
+variations have been developed.
+The original definition and modern variants are examined
+as well as common variations of the deletion operation,
+which varies strongly among implementations.
+We derive our own definitions based on the original specification
+and specifications that had been verified previously,
+whether mechanically or with a pen and paper proof.
+According to this definition, a functional version of the B-Tree
+is implemented in the Isabelle/HOL framework,
+an interactive automated theorem prover.
 The implementation is complemented by a proof of its correctness
 with respect to refining a set on linearly ordered elements
 and a proof of the logarithmic relationship between height and number of nodes.
-This reproduces results of \parencite{DBLP:journals/acta/BayerM72}
+This reproduces results of Bayer \parencite{DBLP:journals/acta/BayerM72}
 supporting claims on the efficiency of
 operations on the tree.
 
 From the functional specification an imperative version is
-derived in the same framework.
+derived in Isabelle/HOL using refinement.
 The main difference to the functional specification is the efficient
 usage of a heap.
 The implementation is shown to again refine the functional program
-using the separation logic utilities for the Isabelle Refinement Framework from
-\parencite{DBLP:journals/jar/Lammich19}.
+using the separation logic utilities for the Isabelle Refinement Framework due to
+Lammich \parencite{DBLP:journals/jar/Lammich19}.
 The result is a proof of the functional correctness
 of an imperative implementation of the B-Tree data structure
 that supports set membership and insertion queries.
 
+From the specification, automatic executable code extraction to
+several functional programming languages is supported.
+This approach compares well to other approaches at mechanized
+proofs of the B-Tree data structure and related specifications
+considering development time and effort in lines of code.
 
 %TODO: Abstract
 

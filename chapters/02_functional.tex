@@ -327,9 +327,13 @@ required two subtrees.
 
 \section{Set operations}
 
-With the definition of B-Trees come a number of operations that allow
-for set-like operations on the trees -
-queries whether an element is contained, insertion and deletion.
+We say that B-trees store linearly ordered values
+that could be stored in an abstract set,
+and the that a B-tree is a concretization
+of this set.
+With this specification of B-trees we need to provide functions that allow
+set-like operations on the trees -
+membership queries, insertion and deletion.
 In the Isabelle/HOL framework, there is a standard interface
 for data structures that provide an implementation of sets.
 

@@ -1,7 +1,7 @@
-# A Verified Implementation of Imperative B-trees
+# A Verified Implementation of Imperative B-Trees
 
 This repository contains the latex source code of the bachelors
-thesis "A Verified Implementation of Imperative B-trees" by Niels Mündler
+thesis "A Verified Implementation of Imperative B-Trees" by Niels Mündler
 as well as the generated PDF of the thesis in the form it was submitted.
 
 ## License

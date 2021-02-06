@@ -322,26 +322,32 @@ the B-tree datatype itself can be refined.
 Rather than actually storing nodes within lists,
 the B-tree nodes are supposed to be stored in the heap,
 and the node list will only contain pointers to the corresponding nodes.
+Pointers are represented by the type \textit{ref} in Imperative/HOL.
+Leaf nodes contain no information and consequently don't have to be stored
+on the heap, therefore we refine them using null pointers.
 Since the Imperative Refinement Framework does not support null pointers,
 B-tree nodes are refined by heap reference \textit{options} instead.
 None represents leafs or empty trees.
-The physical B-tree datatype does hence only need to cover the case
-of actually being an inner node.
+Valid heap references point to refinements of internal nodes.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 datatype 'a btnode =
-    Btnode ('a btnode ref option*'a) pfarray 'a btnode ref option
+    Btnode (('a btnode ref option*'a) pfarray) ('a btnode ref option)
 \end{lstlisting}
 
-Note the similarity to \Cref{lst:btree-def},
-only that \textit{btree} was replaced by \textit{btnode ref option}
-and \textit{list} was replaced by \textit{pfarray}.
+Note the similarity to the definition in \Cref{lst:btree-def},
+only that \textit{btree} was replaced by \textit{btnode ref option},
+\textit{list} was replaced by \textit{pfarray},
+and there is no leaf case anymore.
 
 An abstract B-tree is represented by such a physical node
 if all references on subtrees represent the corresponding
 abstract subtrees and all keys are the same.
+The precise refinement assertion can be seen in \Cref{lst:imp-btree-refine}.
 
-\begin{lstlisting}[mathescape=true, language=Isabelle]
+\begin{figure}
+\begin{lstlisting}[mathescape=true, language=Isabelle, caption={The refinement assertion for B-trees},
+    label={lst:imp-btree-refine}]
 fun btree_assn :: nat $\Rightarrow$ 'a::heap btree $\Rightarrow$ 'a btnode ref option $\Rightarrow$ assn where
   btree_assn k Leaf None = emp |
   btree_assn k (Node ts t) (Some a) = 
@@ -356,21 +362,22 @@ fun btree_assn :: nat $\Rightarrow$ 'a::heap btree $\Rightarrow$ 'a btnode ref o
 abbreviation blist_assn k $\equiv$ list_assn ((btree_assn k) $\times_a$ id_assn)
 
 \end{lstlisting}
+\end{figure}
 
 It seems a little bit awkward that the definition
 includes two relationships regarding only the list of elements in the subtree.
 The reason is that there are two steps of refinements going on.
-First all elements in a list are refined to their physical counterpart.
-This fact is expressed by the list assumption term in the assumption.
+First, all elements in the list are refined to their imperative counterparts.
+This fact is expressed by the \textit{list\_assn} term in the assumption.
 Second, the list itself is refined to an array.
-This is expressed in the term about the partially filled array relationship.
+This is expressed in \textit{is\_pfa} term.
 Since the list assumption makes recursive use of the
-B-tree assumption, this is however a very convenient
-way of expressing the desired relationship.
+B-tree assertion, we again cover up usage of the term
+by an abbreviation.
 
 Using the parameters of \textit{is\_pfa},
 note that we can specify that every node of a B-tree should have
-capacity for $2k$ elements.
+a capacity of $2k$.
 
 \subsection{The split function}
 \label{sec:imp-split}
@@ -378,24 +385,28 @@ capacity for $2k$ elements.
 To implement any set operations we again need a split operation.
 However, what split function exactly will be used can be abstracted again.
 The only important thing is that it refines an abstract split function.
-Imperative split functions should be efficient and as such not actually
-split an array in half and return it the way the abstract function did.
-Rather than that the function should return the index of the subtree
-in which should be recursed.
+However we have some freedom on how to specify this refinement relationship.
+
+Imperative split functions should be efficient and as such should not actually
+split the array in half.
+The operation should rather return the index of the correct
+subtree-separator pair.
 The refinement condition derived from this relationship is as follows.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
-definition split_relation xs $\equiv$ $\lambda$(ls,rs) i. i $\le$ length xs $\wedge$ ls = take i xs $\wedge$ rs = drop i xs
+definition split_relation xs (ls,rs) i = i $\le$ length xs $\wedge$ ls = take i xs $\wedge$ rs = drop i xs
 \end{lstlisting}
 
 A very useful alternative statement of the relationship follows automatically.
+This allows us to simplify terms that only contain $xs$
+to the two sublists when we obtain this relationship in proofs.
 
 \begin{lemma}
     $\splitrelation xs\ (ls,rs)\ i = (xs = ls@rs \wedge i = \length ls)$
 \end{lemma}
 
 From this, we characterize the desired imperative
-split function \texttt{imp\_split} by its Hoare-Triple.
+split function \textit{imp\_split} by its Hoare-Triple.
 
 \begin{align*}
     \langle & \pfarraycap c\ tsi\ a * \blistassn k\ ts\ tsi *  true \rangle \\
@@ -411,73 +422,77 @@ a good split function.
 %TODO move to after the set operations?
 
 In the imperative context, we prefer not to directly
-implement the recursive function from \Cref{fig:linear_split}
+refine the recursive function from \Cref{fig:linear_split}
 but we embark on the exercise of using a while loop.
 The implementation in \Cref{lst:imp-linear-split}
-is very basic but good for getting to know
+not more efficient than the functional linear search,
+but suitable for getting to know
 the usage of while loops in imperative HOL.
 Every iteration, an index on the array is moved forward by one.
 The main part is done in the loop head - if we
 are within the array bounds,
 we obtain the current separator and check if it is
 smaller than the partitioning element.
-We return the first index, at which the separator is greater or equal.
+We return the first index at which the separator is greater or equal.
 
 \begin{figure}
 \begin{lstlisting}[mathescape=true, language=Isabelle, caption={The imperative linear split},
     label={lst:imp-linear-split}]
 definition lin_split :: ('a::heap $\times$ 'b::{heap,linorder}) pfarray $\Rightarrow$ 'b $\Rightarrow$ nat Heap where
-    lin_split $\equiv$ $\lambda$ (a,n) p. do { 
-   
+    lin_split (a,n) p = do { 
         i $\leftarrow$ while  
             ($\lambda$i. if i<n then do { 
-            (_,s) $\leftarrow$ Array.nth a i; 
-            return (s<p) 
+                (_,s) $\leftarrow$ Array.nth a i; 
+                return (s<p) 
             } else return False)  
             ($\lambda$i. return (i+1))  
             0; 
-                
         return i 
     }
 \end{lstlisting}
 \end{figure}
 
-This function behaves quite different to the abstract linear split
-that was implemented before.
+As mentioned, the internal behavior of this function is
+quite different to the abstract linear split from \Cref{fig:linear_split}.
 Therefore, proving that it refines the abstract function requires a small detour.
-We first express and show the most basic, non-trivial result of the function.
-With the help of that we may then show that the result is the same as the result
-of applying the abstract function.
+We first express and show the most basic, non-trivial statement
+we can make about the result of the function.
+We then show that the result is the same as the result
+of applying the abstract function,
+that is that to an external observer, the functions behave the same.
 
-We begin with stating a simple matching Hoare Triple
+We begin by stating a simple matching Hoare Triple
 for the function.
-It follows by supplying the following loop invariant:
-
-\begin{itemize}
-    \item $\forall j<i. \snd (xs!j) < p$: All elements up to the current $i$
-        are smaller than the partitioning element.
-    \item $\uparrow(i \leq n)$: $i$ does not exceed the length of the array and
-    \item $\pfarraycap c\ xs\ (a,n)$: the array stays untouched by the operation
-\end{itemize}
-
-The measure for the loop is the difference $n-i$ which
-decrements by one in each iteration and stays positive.
-From this we obtain the Hoare Triple of the whole linear split.
 
 \begin{lemma}
+    \label{lem:lin-split-ht}
     \begin{align*}
         \langle &\pfarraycap c\ xs\ (a,n)\rangle \\
                   &\linsplit\ (a,n)\ p \\
         \langle \lambda i. & \pfarraycap c\ xs\ (a,n) \\
         * &\uparrow(i \leq n 
-            \wedge (\forall j < i. snd (xs!j) < p) 
+            \wedge (\forall j < i.\ snd (xs!j) < p) 
             \wedge (i<n \longrightarrow snd (xs!i) \geq p)) \rangle_t 
     \end{align*}
 \end{lemma}
 
-For unexciting reasons, this post condition
-actually suffices to imply that there exists a split relation
-to the result of an abstract split function.
+It follows by supplying the following loop invariant:
+
+\begin{itemize}
+    \item $\forall j<i.\ \snd (xs!j) < p$: All elements up to the current $i$
+        are smaller than the partitioning element,
+    \item $\uparrow(i \leq n)$: $i$ does not exceed the length of the array and
+    \item $\pfarraycap c\ xs\ (a,n)$: the array is not manipulated by the operation
+\end{itemize}
+
+In order to show that the loop also terminates,
+we need to provide a measure that strictly decreases in each iteration.
+The measure for the loop is the difference $n-i$ which
+decrements by one in each iteration and stays positive.
+
+For unexciting reasons, the post condition we have thus obtained
+actually suffices to imply that the split relation
+to the result of an abstract split function is satisfied.
 Specifically, we use the abstract split function from
 \Cref{fig:linear_split}. %TODO or explain why a different function was used
 For the two cases of loop termination,
@@ -487,100 +502,102 @@ the abstract function will return the exact same split.
 This is great to know since the previous lemma
 follows directly from the computation and is closely related
 to the loop invariant.
-\footnote{Another, albeit more theoretical,
-reason for excitement is that now we can specify an imperative B-tree
-specification without any reference to the abstraction.
-We simply always use the well known split function in the abstraction
-and only require a post condition similar to the one just shown
-on the imperative split function.}
 This will simplify proofs for alternative imperative split functions.
-With this assurance we approach the binary split.
+\footnote{
+    Another, albeit more theoretical,
+    reason for excitement is that we can now specify imperative B-tree
+    interfaces without any reference to the abstraction.
+    We simply always use the abstract linear split function
+    and only require that the imperative split function satisfies
+    the hoare triple from \Cref{lem:lin-split-ht}.
+}
+With this reassurance we approach the binary split.
 
-The binary split in \Cref{lst:imp-binary-split} conducts a binary search on
-the list of elements.
+A detailed analysis of binary search algorithms
+may be found in the work of Montague \parencite{DBLP:journals/csedu/Montague91},
+which has served as an orientation
+for the derived algorithm in \Cref{lst:imp-binary-split}.
 Rather than walking through the array,
-it narrows down a windows on the array that becomes smaller with
-every iteration.
+it narrows the range in which the desired element may lie
+to a window that it bisected in every iteration.
+This bisection is implemented by inspecting the middle element of the window.
+If the desired element was not found, the algorithm
+recurses into either the left or right remaining subwindow.
 In the final iteration,
-the windows must have narrowed down to a single element,
-which is the result.
+the window has narrowed down to a single element,
+containing the correct separator and subtree.
 
 \begin{figure}
 \begin{lstlisting}[mathescape=true, language=Isabelle, caption={The imperative binary split},
     label={lst:imp-binary-split}]
-    definition bin_split :: ('a::heap $\times$ 'b::{heap,linorder}) pfarray $\Rightarrow$ 'b $\Rightarrow$ nat Heap 
-    where 
-      bin_split $\equiv$ $\lambda$(a,n) p. do { 
-    (low',high') $\leftarrow$ while  
-      ($\lambda$(low,high). return (low < high))  
-      ($\lambda$(low,high). let mid = ((low  + high) div 2) in 
-       do { 
-        (_,s) $\leftarrow$ Array.nth a mid; 
-        if p < s then 
-           return (low, mid) 
-        else if p > s then 
-           return (mid+1, high) 
-        else return (mid,mid) 
-       })  
-      (0::nat,n); 
-    return low' 
-  }
+definition bin_split :: ('a::heap $\times$ 'b::{heap,linorder}) pfarray $\Rightarrow$ 'b $\Rightarrow$ nat Heap 
+    where bin_split (a,n) p = do { 
+        (low',high') $\leftarrow$ while  
+            ($\lambda$(low,high). return (low < high))  
+            ($\lambda$(low,high).
+            let mid = ((low  + high) div 2) in 
+            do { 
+                (_,s) $\leftarrow$ Array.nth a mid; 
+                if p < s then 
+                    return (low, mid) 
+                else if p > s then 
+                    return (mid+1, high) 
+                else
+                    return (mid,mid) 
+            })  
+            (0::nat,n); 
+        return low' 
+    }
 \end{lstlisting}
 \end{figure}
 
-A detailed analysis of binary search algorithms
-may be found in \parencite{DBLP:journals/csedu/Montague91},
-which has served as an orientation for the derived algorithm.
-The main idea is that the algorithm iteratively
-narrows a window on the array in which the desired element may lie.
-In each step, the middle element of that window is inspected
-and either desired element is returned or the algorithm
-recurses into either left or right remaining subwindow.
-
-Since pairs as list elements
-add another layer of complexity for the simplifier,
-a binary split algorithm on lists that contain
-only single elements has been derived first.
-After several small corrections,
-it was proven to be correct.
+Since pairs as list elements (i.e. pairs of trees and separators)
+were expected to add another layer of complexity,
+a binary split algorithm on normal lists has been derived first.
+The code required several small corrections
+until it could be proven correct.
+This supports the general call
+for verified programs and hints at the fragility
+of efficient unverified programs.
 The split function for lists of pairs was then defined
-and could be tackled by the same approach,
-using the below loop invariant.
+and could be tackled using the same loop invariant.
 Note that the binary split works on two indices
 as states, the upper bound $h$ and the lower bound $l$.
 
 \begin{itemize}
-    \item $\forall j<l. \snd (xs!j) < p$: All elements up to the current $i$
-        are smaller than the partitioning element.
-    \item $h<n \rightarrow \snd (xs!h) < p$: If the upper bound is strictly less than the length
-    of the array, the element it points to is greater than the partioning element
-    \item $l \leq h$: The lower bound is always less or equal to the upper bound
+    \item $\forall j<l.\ \snd (xs!j) < p$: All elements up to the current $l$
+        are smaller than the partitioning element,
+    \item $h<n \rightarrow \snd (xs!h) < p$: If the upper bound $h$
+    is strictly less than the length of the array,
+    the element it points to is greater than the partioning element,
+    \item $\uparrow(l \leq h)$: The lower bound is always less or equal to the upper bound,
     \item $\uparrow(h \leq n)$: the upper bound does not exceed the length of the array and
-    \item $\pfarraycap c\ xs\ (a,n)$: again, the array stays untouched by the operation
+    \item $\pfarraycap c\ xs\ (a,n)$: again, the array is not manipulated by the operation
 \end{itemize}
 
 In this case the window that is considered by the binary split
-provides for the loop measure, as $h-l$ is decreased by at least one in each step.
-Proving that this was the case was not the main issue,
-but more to find a correct formulation of the algorithm
+provides the loop measure, as $h-l$ decreases by at least one in each step.
+Proving that this is the case was not the main issue,
+but rather finding a correct formulation of the algorithm
 where this is actually true.
 
 Overall obtaining the same Hoare Triple
 as for the linear split required only
 this slightly more complex loop invariant
 and invocation of a number of algebraic lemmas.
-This was somewhat of a surprise as the functional
+This was somewhat of a surprise, since the functional
 version of a binary split is much harder to
-specify and analyse than a linear split.
+specify and analyse than a functional linear split.
 The additional requirement for the binary split is
 naturally that the list of separators must be sorted.
 
 \begin{lemma} $\sorted (\separators xs) \Longrightarrow$ \\
+    \label{lem:imp-bin-split-ht}
     \begin{align*}
         \langle &\pfarraycap c\ xs\ (a,n)\rangle \\
                   &\binsplit\ (a,n)\ p \\
-        \langle \lambda i. & \pfarraycap c\ xs\ (a,n)
-        * \uparrow(i \leq n 
+        \langle \lambda i. & \pfarraycap c\ xs\ (a,n)\\
+        &* \uparrow(i \leq n 
             \wedge (\forall j < i. snd (xs!j) < p) 
             \wedge (i<n \longrightarrow snd (xs!i) \geq p)) \rangle_t 
     \end{align*}
@@ -601,14 +618,15 @@ the set operations.
 In general, the formulation of the imperative set operations
 do quite directly follow
 from the refinement of the abstract operations.
-Pointers need to be dereferenced, modified and updated.
+The main difference is the usage of pointers,
+that need to be dereferenced and updated.
 Functions such as length need to be called and have their result
 stored explicitly before use.
 Other than that, the definition of the imperative isin in \Cref{lst:imp-isin-fun}
 function should bare no surprises.
 Note that it makes use of the function \textit{imp\_split}
-which is an arbitrary split function that has the Hoare Triple
-specified in \Cref{sec:imp-split}.
+which is an arbitrary split function that fulfils the Hoare Triple
+of \Cref{lem:imp-bin-split-ht}.
 
 \begin{figure}
 \begin{lstlisting}[mathescape=true, language=Isabelle, label={lst:imp-isin-fun},
@@ -636,23 +654,22 @@ partial_function (heap) isin :: 'a btnode ref option $\Rightarrow$ 'a $\Rightarr
 \end{lstlisting}
 \end{figure}
 
-The Hoare Triple to argue that this is a refinement of the abstract operation
-follows.
-The convention for variables that refer to refined datatype
+The convention for variables that refer to refined datatypes
 is that they have the same name as the abstract datatype,
 with the postfix \textit{i}.
 For example below, the abstract \textit{btree} is referred to by $t$,
-however the refined \textit{btnode ref option} that represents it
-is called $ti$.
+however the refined \textit{btnode ref option} is called $ti$.
 To simplify notation, we simply assume that the set operations
 such as \textit{isin} are overloaded and refer to abstract or
-imperative version, depending on the parameter type.
+imperative implementations, depending on the parameter type.
+The Hoare Triple to argue that the imperative \textit{isin}
+refines the abstract \textit{isin} follows.
 
 \begin{lemma} $\sorted (\inorder t) \Longrightarrow$ \\
 \begin{align*}
    \langle &\btreeassn k\ t\ ti\rangle \\
            &\isinfun ti\ x \\
-   \langle \lambda r. &\btreeassn k\ t\ ti * \uparrow(\isinfun t\ x = r)\rangle_t
+   \langle \lambda r. &\btreeassn k\ t\ ti\ * \uparrow(\isinfun t\ x = r)\rangle_t
 \end{align*}
 \end{lemma}
 
@@ -665,9 +682,9 @@ The proof follows by induction on the computation of the abstract isin function.
 Inside a structured proof skeleton of the induction,
 proving the subgoals in apply style turned out to be the most
 appropriate.
-The only help that the separation automation tool required
-is a manually specification of the instantiation for existential quantifiers
-for applying the inductive hypothesis. 
+The separation automation tool only required help
+for the instantiation of existential quantifiers,
+especially after application of the inductive hypothesis. 
 % TODO more details?
 
 \subsection{Insertion}
@@ -681,7 +698,7 @@ definition node$_i$
       n $\leftarrow$ pfa_length a;
       if n $\le$ 2*k then do {
         a' $\leftarrow$ pfa_shrink_cap (2*k) a;
-        l $\leftarrow$ ref (Btnode a' ti);
+        l $\leftarrow$ alloc (Btnode a' ti);
         return (T$_i$ (Some l))
       }
       else do {
@@ -693,8 +710,8 @@ definition node$_i$
         a' $\leftarrow$ pfa_shrink i a; 
         a'' $\leftarrow$ pfa_shrink_cap (2*k) a';
         let (sub,sep) = m in do {
-          l $\leftarrow$ ref (Btnode a'' sub);
-          r $\leftarrow$ ref (Btnode b' ti);
+          l $\leftarrow$ alloc (Btnode a'' sub);
+          r $\leftarrow$ alloc (Btnode b' ti);
           return (Up$_i$ (Some l) sep (Some r))
         }
       }
@@ -739,7 +756,7 @@ definition insert :: nat $\Rightarrow$ ('a::{heap,default,linorder}) $\Rightarro
      T$_i$ sub $\Rightarrow$ return sub |
      Up$_i$ l a r $\Rightarrow$ do {
         ts' $\leftarrow$ pfa_init (2*k) (l,a) 1;
-        t' $\leftarrow$ ref (Btnode ts' r);
+        t' $\leftarrow$ alloc (Btnode ts' r);
         return (Some t')
       }
 }
@@ -748,11 +765,16 @@ definition insert :: nat $\Rightarrow$ ('a::{heap,default,linorder}) $\Rightarro
 \end{figure}
 
 %TODO Description of applying the refinement framework to the insert function
-The imperative implementation and derived heap rule of the insertion function follow
-the same pattern as the isin function.
+The imperative implementation and derived heap rule of the \textit{insert} function follow
+the same pattern as the \textit{isin} function.
 The only interesting part is whether and how often new memory is allocated.
-An excerpt of the ins function can be seen in \Cref{lst:imp-ins-fun}.
-The function includes some optimizations, such as not calling
+An excerpt of the refinement of the \textit{ins} function
+can be seen in \Cref{lst:imp-ins-fun}\footnote{
+    In the imperative language in Isabelle, allocating heap memory
+    is abbreviated by \textit{ref}.
+    To clarify that this means allocation, it is named \textit{alloc} here.
+}.
+The function includes some simple optimizations, such as not calling
 \textit{node$_i$} if the node is not overflowing.
 This is an optimization as otherwise \textit{node$_i$} in
 \Cref{lst:imp-nodei-fun} would always allocate a new B-tree node
@@ -761,16 +783,17 @@ rather than updating the current node in place.
 To prove that this optimization is valid, the only obligation
 is to show that the updated node itself is equivalent
 to the node returned by \textit{node$_i$}.
+Since we are in the branch where the node contains less than $2k$
+elements, this is easy to show, provided some intermediate lemmas
+that relate concrete node and abstract node in this context.
 
 \begin{lemma}$\length ts \leq 2k \Longrightarrow
     \node_i k\ ts\ t = T_i (Node\ ts\ t)$
 \end{lemma}
 
-Since we are in the branch where the node contains less than $2k$
-elements, this is easy to show, provided some intermediate lemmas
-that relate concrete node and abstract node in this context.
-Adding a lemma on the equivalence between abstract and imperative
-\textit{node$_i$}, we finally obtain a lemma for \textit{ins}
+\begin{samepage}
+By adding a lemma on the equivalence between abstract and imperative
+\textit{node$_i$}, we obtain a lemma for \textit{ins}
 by induction on the computation
 of the abstract \textit{ins} function.
 
@@ -781,11 +804,20 @@ of the abstract \textit{ins} function.
        \langle \lambda r. &\btreeassn k\ (\insfun k\ t\ x) r\rangle_t
     \end{align*}
 \end{lemma}
+\end{samepage}
 
-The insertion function incorporates the function $\tree_i$
-in much the same way.
+The proof of this lemma was done in a mixed structural and apply style manner.
+It could have been done in a complete apply style manner.
+However many subgoals are generated in the proof process that are
+simply invalid due to the preconditions of the hoare triple.
+Embedding the proof in the structural skeleton makes spotting
+these void statements easier and allows to have a better
+overview over the current state of the proof.
+
+The insertion function incorporates the function \textit{tree}$_i$
+in much the same way as \textit{ins} incorporated the small \textit{node}$_i$ optimizations.
 Here the proof of equivalence followed automatically.
-With the hoare rule for $ins$, we obtain the final desired lemma
+With the hoare triple for \textit{ins}, we obtain the final desired lemma
 on the imperative insertion.
 
 \begin{theorem} $k > 0 \wedge \sorted (\inorder t) \Longrightarrow$ \\
@@ -798,22 +830,20 @@ on the imperative insertion.
 \end{theorem}
 
 % TODO say something about k?
-Note how we have the additional assumption that $k$ be positive.
+Note how we have the additional assumption that $k$ is positive.
 This was only required to show correct order in the abstract setting.
 Here, the capacity of the root node needs to be specified at initialization.
 And since the capacity has to be $2k$ and the node has to hold at least one element
+a positive $k$ is required such that no contradiction appears.
 
 Until now we have only shown that the concrete
 implementations refine the abstract interpretations.
 What does this bring concretely?
-Do we have to finally resort to an informal proof to show that the result
-satisfies the desired properties?
+Do we have to finally resort to an informal argument to show that the result
+satisfies the invariants and the set interface?
 This is not the case.
-The theorem that would likely be desired by a purist\footnote{
-    Admittedly, a purist that accepts our alternative Set interface.
-    However this interface was shown to implement the standard Set interface
-    so this should not really be an issue.
-} would be the following
+The final theorem that proves functional correctness of the imperative
+implementations with respect to the set interface follows.
 
 \begin{corollary} $k > 0 \Longrightarrow$
 \begin{align*}
@@ -824,7 +854,7 @@ The theorem that would likely be desired by a purist\footnote{
 \end{corollary}
 
 And indeed, this can be derived automatically with a single command invocation,
-using \Cref{thm:imp-ins-rule}, \Cref{thm:ins-set} and \Cref{thm:ins-invar}.\footnote{
+unfolding \Cref{def:btree-def} and using \Cref{thm:imp-ins-rule}, \Cref{thm:ins-set} and \Cref{thm:ins-invar}.\footnote{
     Technically we also need the fact that ins$_{list}$ preserves sortedness.
     This was already proven by Nipkow \parencite{DBLP:conf/itp/Nipkow16}
     and is considered trivial here.
@@ -837,7 +867,7 @@ An imperative version of the deletion operation has been specified.
 It required some additional operations on partially filled arrays but
 posed no foundational challenges.
 Due to its length it is not shown here but may be looked up in the
-actual proof.
+actual proof documents.
 
 However the proof of its refining property was not conducted.
 We assume that this proof would be structured similar to
@@ -846,6 +876,7 @@ The only benefit would be exploring usage of the new
 heap rules introduced for the additional array operations.
 The main difference to the verification of the
 insertion function is that the refined functions
-are undefined for many cases and hence it is highly important
+are undefined for many cases.
+Hence it is highly important
 to strongly tie the refined and imperative version
-in order to discharge impossible cases.
+in order to discharge void cases.

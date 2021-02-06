@@ -2,15 +2,16 @@
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
 
-\chapter{Functional B-Trees in Isabelle}\label{chapter:abs-set}
+\chapter{Functional B-trees in Isabelle}\label{chapter:abs-set}
 
 Proving higher level properties of data structures
-tends to be easier on a functional level than on the imperative
+tends to be easier on a functional level than on an imperative
 level.
 This is mostly due to the fact that many details of implementation
 can be abstracted away or expressed in a simpler manner.
-The work therefore begins with a functional specification of B-Trees
-that is not aware of the existence of heaps or non-persistence.
+The work therefore begins with a functional specification of B-trees
+that is not aware of the existence of heaps and uses
+persistent data structures.
 
 \section{Basic Definitions}
 \label{sec:basic-defs}
@@ -21,45 +22,75 @@ that is not aware of the existence of heaps or non-persistence.
 % TODO all function equations similar to math equations, setting variables in italics
 
 As discussed in \Cref{chapter:introduction},
-we define B-Trees recursively to either hold a list
-subtrees and keys or be a completely empty Leaf.
+we define B-trees recursively to either
+be a \textit{Node}, comprising a list
+of subtrees and keys or to be a \textit{Leaf}
+that contains no information.
 The only room for interpretation is how to actually
 store the subtrees and separators.
-For Trees of variable but bounded size,
-an explicit constructor may be given as for the 234-Trees in \parencite{DBLP:conf/itp/Nipkow16}.
-However since the number of elements in B-Trees
-is technically unbounded (as $k$ is not bounded)
-we need to use an intermediate data structure,
-a list, to store them.
+For trees of variable but constantly bounded size,
+an explicit constructor for each possible size may be given.
+An example may be found for the 234-trees analysed by Nipkow\parencite{DBLP:conf/itp/Nipkow16},
+where the number of subtrees is maximally 5.
+However in B-trees, the number of subtrees
+is bounded only by $k$, which is neither constant
+nor bounded by a constant.
 
-In \parencite{DBLP:conf/popl/MalechaMSW10},
-the B-Tree datatype was defined directly on the heap
-and comprised a field that stored the height as well
-as an array of fixed size that contains $key \times subtree$ pairs.
-Since the list of children is exactly one longer than the list of keys,
-a pointer to the last tree is added to the node in a special position.
+One possible way out is the choice to make nodes
+extensible by their definition.
+That is, a node is does either have one subtree,
+one element and a continuation of the node or
+it is the last entry and has only one subtree.
+This approach was implemented by Ernst \parencite{DBLP:journals/sosym/ErnstSR15}.
+However the approach yields a number of downsides.
+First, all operations on the tree were defined co-recursively,
+which adds a layer of complexity to the project.
+Further, general lemmas for lists or similar datatypes can not
+be used directly for this structure and would need to be transferred manually
+or derived newly.
+
+Therefore we use an intermediate data structure to store the subtrees.
+This approach is called nested recursive definition
+and will become clearer in the actual code.
+The intuitive idea would be to choose sets as an abstract
+datatype to hold subtrees and keys, as was the first step done by Fielding \parencite{Fielding80}.
+However here we are limited as recursive nested definitions
+make only sense for finitely bounded subtypes.\footnote{
+    More information on this topic and potential remedies
+    may be found in the tutorial to datatype definition in Isabelle
+    \parencite{isabelleDatatypeManual}.
+}
+Sets themselves are potentially of infinite cardinality
+and hence not bounded and working with finite sets
+introduces additional complexity that we want
+to circumvent in the abstract definition.
+
+Therefore we resort to the list datatype,
+defining each node to hold a list of key-node pairs.
 By storing subtrees and keys next to each other,
-definitions that relate subtrees to their immediately
-neighboring separating keys (i.e. sortedness) becomes easier to define recursively.
+properties that relate subtrees to their immediately
+neighboring separators (i.e. sortedness)
+can be defined locally on each pair in the list.
 This also implicitly enforces the relationship of the number of subtrees
 and separators and makes the explicit use of length and index relationships unnecessary.
-Therefore we chose to define B-Trees in a similar manner.
 
-We will store subtrees and keys in pairs,
+A similar approach was chosen by Malecha \parencite{DBLP:conf/popl/MalechaMSW10}.
+There, the B-tree datatype was defined directly on the heap
+and comprised the height of the tree, a pointer to the last subtree and
+an array of fixed size that contains pairs of value and pointers.
+We will store subtrees and keys in pairs too,
 however with a different in-pair order,
 such that the left subtree of a key is the left element
 in a tuple and the key is the right element.
 Moreover in a functional context, we will not make use of arrays
 but rather resort to lists.
-Other than in the imperative setting,
-the explicit storing of the height inside a node is also
-not required.
-In \parencite{DBLP:conf/popl/MalechaMSW10} the height was
+In \parencite{DBLP:conf/popl/MalechaMSW10} the height attribute was
 used to inductively define a shape predicate that is only valid
 if the height decreases for subtrees.
 However, the finite size of the abstract tree is an implicit
 result of its recursive definition.
-The definition follows and a visualization may be seen in \Cref{fig:btree-basic}.
+We therefore also do not explicitly store the height of the tree.
+A visualization of the final definition may be seen in \Cref{fig:btree-basic}.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle,label=lst:btree-def]
 datatype 'a btree = Leaf | Node (( 'a btree * 'a ) list) ('a btree)
@@ -69,32 +100,34 @@ datatype 'a btree = Leaf | Node (( 'a btree * 'a ) list) ('a btree)
     \centering
     \includegraphics[width=0.5\linewidth]{figures/btree-basic.pdf}
     \caption[Visualization of the implementation choice for B-Trees]
-    {The B-Tree from figure \Cref{fig:btree-basic-nopair} as concretely specified.
+    {The B-tree from figure \Cref{fig:btree-basic-nopair} as concretely specified.
     Subtrees and separators that lie in pairs in the implementation are surrounded by brackets.}
     \label{fig:btree-basic}
 \end{figure}
 
 
-The construction leads to the fact that it is easiest to relate any separator
-to the subtree on the left, as this subtree is in the same tuple.
-If a subtree on the right is required we may either match the
-list to the right with the list constructor or 
-choose the last tree.
+As said, this definition makes it easy to relate any separator
+to the subtree on the left, as this is subtree in the same tuple.
+If we need access to the subtree on the right,
+we may match the remaining list the list constructor
+and take the subtree of the first tuple.
+In case the remaining list is empty,
+we need to choose the last tree.
 
-The balancedness of a B-Tree is defined recursively, making use
+The balancedness of a B-tree is defined recursively, making use
 of an intuitively defined height.\footnote{
-    Note that the actual implementation of height is slightly different,
-    however this is of no importance in any proofs but rather notationally convenient.
-    Moreover, $`$ denotes the image all elements of a set for a given function.
+    The short hand "$`$" denotes the image of all elements of a set for a given function.
 }
-There is a choice regarding how to obtain
-the number to which the height of all subtrees has to be equal.
-Either we fix the balancedness of a tree
-on some existentially quantified number or to a known value.
+The height of all subtrees must be equal.
+However it is not completely intuitive
+what would be the best way to express this property.
+Either we fix the height of all trees
+to some existentially quantified number or to a known value.
 Since we know the last tree in the node exists and further
 know that if all subtrees of the node have the same height,
 then their height is equal to the last tree,
 we simply choose the height of the last tree as an anchor point.
+
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 
@@ -105,11 +138,19 @@ fun height :: 'a btree $\Rightarrow$ nat where
 fun bal :: 'a btree $\Rightarrow$ bool where
     bal Leaf = True |
     bal (Node ts t) = (
-      ($\forall$sub $\in$ set (subtrees ts). height t = height sub) $\wedge$
-      ($\forall$sub $\in$ set (subtrees ts). bal sub) $\wedge$
-      bal t
+      ($\forall$sub $\in$ set (subtrees ts). height sub = height t) $\wedge$
+      ($\forall$sub $\in$ set (subtrees ts). bal sub) $\wedge$ bal t
     )
 \end{lstlisting}
+
+Another option, demonstrated by Fielding, is
+to define balancedness as defined by Bayer
+to be that all paths from the root to the node are of equal length,
+or that the set of lengths of all paths be of size 1.
+However reasoning on set cardinality is likely to be more difficult
+in a mechanized proof than on paper
+and the definition for the mechanized proof by Ernst resembles
+ours more closely, so we did not experiment much with this option.
 
 Further the order of the trees needs to be formally defined.
 As discussed in \Cref{sec:data_structure_defs}, the most useful choice here is
@@ -120,7 +161,7 @@ Note that we also need a special property $order^r$ for the root of the tree,
 which has between one and $2k$ elements.
 In mathematical equations, we will denote "order $k$ $t$" as "$\order_k t$"
 for convenience (likewise for "order$^r$ $k$ $t$"), which is to be read as
-"Tree $t$ is of order $k$".
+"tree $t$ is of order $k$".
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 
@@ -129,8 +170,7 @@ fun order :: nat $\Rightarrow$ 'a btree $\Rightarrow$ bool where
     order k (Node ts t) = (
     (length ts $\ge$ k)  $\wedge$
     (length ts $\le$ 2*k) $\wedge$
-    ($\forall$sub $\in$ set (subtrees ts). order k sub) $\wedge$
-    order k t
+    ($\forall$sub $\in$ set (subtrees ts). order k sub) $\wedge$ order k t
   )
 
 fun order$^r$ where
@@ -138,31 +178,30 @@ fun order$^r$ where
   order$^r$ k (Node ts t) = (
   (length ts $>$ 0) $\wedge$
   (length ts $\le$ 2*k) $\wedge$
-  ($\forall$s $\in$ set (subtrees ts). order k s) $\wedge$
-   order k t
+  ($\forall$s $\in$ set (subtrees ts). order k s) $\wedge$ order k t
 )
 
 \end{lstlisting}
 
-We define the sortedness of a B-Tree based on the \textit{inorder} of the tree,
-which is the concatenation of all elements of the tree in in-order traversal.
-The concatenation function $concat$ on lists of strings
-is employed to express the resulting string.
-Note that this definition reads a bit inconveniently
+We define the sortedness of a B-tree based on the \textit{inorder} of the tree,
+which is the catenation of all elements in the tree in in-order traversal.
+The library function $concat$ on lists of lists
+is employed here to express catenation of
+the inorder of subtrees and the separators.
+This definition reads a bit inconveniently
 as the node internal list is first mapped and then concatenated.
 However since we make recursive use of the inorder-function
-inside the mapping expression, we can only later cover up this expression
-by using abbreviations.
-In mathematical terms in the following, we will not distinguish between lists, 
+inside the mapping expression, mapping the subtree list can not be externalized.
+We only later cover up this expression by using abbreviations.
+In the following, we will not distinguish between lists, 
 pairs or trees when talking about their inorder representation.
-The matching function from the below listing is meant instead.
+The function with the correct type from the below listing is meant instead.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 fun inorder :: 'a btree $\Rightarrow$ 'a list where
     inorder Leaf = [] |
     inorder (Node ts t) = 
-        concat (map ($\lambda$ (sub, sep). inorder sub @ [sep]) ts)
-        @ inorder t
+        concat (map ($\lambda$ (sub, sep). inorder sub @ [sep]) ts) @ inorder t
 
 abbreviation inorder_pair  $\equiv$ $\lambda$(sub,sep). inorder sub @ [sep]
 abbreviation inorder_list ts $\equiv$ concat (map inorder_pair ts)
@@ -172,20 +211,20 @@ That way we can express sortedness of the tree $t$ as a simple $\sorted (\inorde
 where $sorted$ is the property of being sorted strictly (with resprect to $<$)
 in ascending order.
 This definition is very compact and brings for another benefit
-pointed out by Nipkow et al in \parencite{DBLP:conf/itp/Nipkow16}.
+pointed out by Nipkow \parencite{DBLP:conf/itp/Nipkow16}:
 Many properties of search trees follow intuitively by considering
 the inorder view on the tree.
-Usually, it invariant for all operations (i.e. stealing from the right neighbor node)
+Often, it is supposed to be invariant (i.e. stealing from the right neighbor node)
 or only deviates in a manner we expect it to deviate given the inorder view
 (i.e. insert an element at the correct position).
 We will see later how the use of this fact comes in handy for proving
 important properties of the implementation.
 
-Since our B-Tree definition really only makes sense for positive $k$,
-we obtain the following overall invariant for B-Trees.
+Since our B-tree definition really only makes sense for positive $k$,
+we obtain the following overall invariant for B-trees.
 
 \begin{definition}
-    $k > 0 \Longrightarrow \btree_k t := \bal t \wedge \order^r_k t \wedge \sorted (\inorder t)$
+    $k > 0 \Longrightarrow \btree_k t = \bal t \wedge \order^r_k t \wedge \sorted (\inorder t)$
 \end{definition}
 
 All trees that satisfy this invariant have a very small
@@ -196,10 +235,10 @@ This fact is examined closer in the following section.
 \section{Height of B-Trees}
 
 %Height etc.
-As pointed out by Bayer in the first paper describing B-Trees,
-the height of B-Trees is logarithmic with respect to the number
-of nodes of the tree. \parencite{DBLP:journals/acta/BayerM72}
-The paper even gives a precise lower and upper bound,
+As pointed out by Bayer \parencite{DBLP:journals/acta/BayerM72},
+the height of B-trees is logarithmic with respect to the number
+of nodes of the tree.
+The original paper even gives a precise lower and upper bound,
 which will be quickly sketched in the following.
 
 First, we define the number of nodes in a tree:
@@ -231,19 +270,20 @@ by induction on the computation of the nodes function.
 \end{lemma}
 
 From \Cref{lem:bound_internal_node} we can almost directly obtain
-the bounds on valid roots of B-Trees.
+the bounds on valid roots of B-trees.
 The only difference to the bound of internal nodes occurs on the lower bound side.
 The issue here is that a root node may contain less elements than
 a valid internal node (namely only one), which yields two subtrees with known height
 plus one for the node itself.
-Note that these are the exact bounds obtained by Bayer et al. in \parencite{DBLP:journals/acta/BayerM72},
+Note that these are the exact same bounds as obtained by Bayer \parencite{DBLP:journals/acta/BayerM72},
 except for the fact that we have generalized the equation,
 incorporating whether $t$ is a tree or not.\footnote{
-    If $t$ is in fact a Leaf,
+    If $t$ is a \textit{Leaf},
     $2((k+1)^{\height t - 1} - 1) \div k + (t \neq Leaf)$ becomes a fancy way of writing $0$.
 }
 
 \begin{theorem}
+    \label{thm:bound_btree}
     $\rootorder_k t \wedge \bal t \wedge k > 0 \longrightarrow$
     \begin{equation}
         2((k+1)^{\height t - 1} - 1) \div k + (t \neq Leaf) \le \nodes t \le ((2k+1)^{\height t} - 1) \div 2k
@@ -257,10 +297,11 @@ Therefore, we are glad to see that the height is logarithmic
 with respect to the number of nodes stored in the tree.
 
 These bounds are sharp.
-We prove this by providing 
+We prove this by providing in \Cref{lst:sharp-trees-def}.
 functions that generate exactly those trees
-that satisfy the requirements of B-Trees, have a given height
-and satisfy the inequality with equality in \Cref{lst:sharp-trees-def}.
+that satisfy the requirements of B-trees, have a given height
+and satisfy the inequality from \Cref{thm:bound_btree}
+with equality.
 As might be expected, these trees are simply those trees
 that are minimally or maximally filled in each node with respect
 to the order property.
@@ -310,17 +351,17 @@ The proof for internal nodes follows by induction over the creation.
 
 The rule for the roots follows directly, making use of the lemma
 for the internal nodes.
-Note how for the root node the results is simply two times the
+Note how for the root node the result is simply two times the
 value for trees of one height less, which are the minimally
 required two subtrees.
 
 % TODO prove div version of thm
 \begin{theorem}
-    $k > 0 \wedge t_f := \fulltree k\ a\ h \wedge t_s := \slimtree k\ a\ h \longrightarrow$
+    $k > 0 \wedge t_f = \fulltree k\ a\ h \wedge t_s = \slimtree k\ a\ h \longrightarrow$
     \begin{align*}
     h = \height t_s &= \height t_f &\wedge \\
         ((2k+1)^h - 1) \div 2k &= \nodes t_f &\wedge \rootorder_k t_f \wedge \bal t_f \\ 
-        2((k+1)^h - 1) \div k + (t_s \neq Leaf) &= \nodes t_s &\wedge \rootorder_k t_s \wedge \bal t_s
+        2((k+1)^{h-1} - 1) \div k + (t_s \neq Leaf) &= \nodes t_s &\wedge \rootorder_k t_s \wedge \bal t_s
     \end{align*}
 \end{theorem}
 
@@ -340,91 +381,73 @@ for data structures that provide an implementation of sets.
 \subsection{The Set Interface}
 % Description of the set interface
 
-An implementation \textit{'a t} of the sets of elements of type \textit{'a} is required to provide the following
-operations
+As described by Nipkow \parencite{DBLP:conf/itp/Nipkow16},
+an implementation \textit{'a t} of sets of elements of type \textit{'a} is required to provide the following
+operations:
 
 \begin{itemize}
     \itshape
-    \item empty :: 'a t
-    \item isin :: 'a t $\Rightarrow$ 'a $\Rightarrow$ bool
-    \item insert :: 'a $\Rightarrow$ 'a t $\Rightarrow$ 'a t
-    \item delete :: 'a $\Rightarrow$ 'a t $\Rightarrow$ 'a t
+    \item empty :: 'a t \textup{\textbf{where}} set empty = $\emptyset$
+    \item isin :: 'a t $\Rightarrow$ 'a $\Rightarrow$ bool \textup{\textbf{where}} inv t $\Longrightarrow$ isin x t = x $\in$ t
+    \item insert :: 'a $\Rightarrow$ 'a t $\Rightarrow$ 'a t \textup{\textbf{where}} inv t $\Longrightarrow$ set (insert t x) = set t $\cup$ {x}
+    \item delete :: 'a $\Rightarrow$ 'a t $\Rightarrow$ 'a t \textup{\textbf{where}} inv t $\Longrightarrow$ set (delete t x) = set t $\backslash$ {x}
 \end{itemize}
 
-Additionally, an invariant \textit{invar :: 'a t $\Rightarrow$ bool} has to be supplied.
+For some abstraction function \textit{set :: 'a t $\Rightarrow$ 'a set}.
+Additionally, an invariant \textit{inv :: 'a t $\Rightarrow$ bool} has to be supplied.
 For this work, using the definition from \Cref{lst:btree-def},
 we consider \textit{'a t = 'a btree}.
-The standard approach is to provide functions on B-Tree and show
+The standard approach is to provide functions on B-tree and show
 that they have the same effect as membership test, insertion and deletion 
-in abstract sets with the same elements
-(i.e. $invar\ t \Longrightarrow set\ (insert\ x\ t) = set\ t \cup {x}$ ).
+in abstract sets with the same elements (specified above after "where").
 Further, the invariant needs to remain valid for the results of the operations
-as well as the $empty$ element (i.e. $invar\ t \Longrightarrow invar\ (insert\ x\ t)$).
-In order to obtain such a set, an additional \textit{abstraction function}
-has to be provided, \textit{set :: 'a t $\Rightarrow$ 'a set}.
+as well as the $empty$ element (i.e. $inv\ t \Longrightarrow inv\ (insert\ x\ t)$).
 
 We know from \Cref{sec:basic-defs} that one of the invariants
 of the tree is that it is always sorted.
 While this is expressed in a somewhat cumbersome manner
 in the original definition by Bayer \parencite{DBLP:journals/acta/BayerM72},
 this requirement is nothing else but a sortedness of the inorder view of the tree.
-Knowing this, we resort to a specialized Set interface
+Knowing this, we resort to a specialized set interface
 proposed by Nipkow \parencite{DBLP:conf/itp/Nipkow16}.
-Their approach yielded automatic proofs for 2-3-Trees
-and 2-3-4-Trees, which are specializations of B-Trees.
-The modified Set interface reasons based on the inorder
+His approach yielded automatic proofs for 2-3-trees
+and 234-trees, which are specializations of B-trees.
+The modified Set interface reasons based on the \textit{inorder}
 view on the tree instead of the \textit{set} abstraction.
 
+\begin{itemize}
+    \itshape
+    \item empty :: 'a t \textup{\textbf{where}} inorder empty = []
+    \item isin :: 'a t $\Rightarrow$ 'a $\Rightarrow$ bool \textup{\textbf{where}}\\
+     inv t $\wedge$ sorted(inorder t) $\Longrightarrow$ isin x t = x $\in$ set (inorder t)
+    \item insert :: 'a $\Rightarrow$ 'a t $\Rightarrow$ 'a t \textup{\textbf{where}}\\
+     inv t $\wedge$ sorted(inorder t) $\Longrightarrow$ inorder (insert t x) = ins$_{list}$ (inorder t) x
+    \item delete :: 'a $\Rightarrow$ 'a t $\Rightarrow$ 'a t \textup{\textbf{where}}\\
+     inv t $\wedge$ sorted(inorder t) $\Longrightarrow$ inorder (delete t x) = del$_{list}$ (inorder t) x
+\end{itemize}
+
 The invariant and inorder functions for this set interface
-follow directly from the definition of B-Trees.
+follow directly from the definition of B-trees.
 Hence, we specify $k > 0 \wedge \order^r_k t \wedge \bal t$
-as the invariant of B-Trees and use
+as the invariant of B-trees and use
 the concatentation function from \Cref{sec:basic-defs} to specify the
 inorder abstraction \textit{inorder :: 'a t $\Rightarrow$ 'a list}.
+Note that sortedness is not part of the invariant
+but will be required for all operations and preserved
+due to the definition of $ins_{list}$ and $del_{list}$.
 The interface is then implemented by providing set operations
-and the proofs of invariant preservation.
+and the proofs of invariant preservation
+with respect to this inorder abstraction.
 
-Some parts of the Set specification are trivial.
+Some parts of the set specification are trivial.
 In the following, \textit{Leaf} is an empty tree and hence represents
 the empty set, satisfying the first part of the specification.
-It can be seen directly that the leafs already satisfy all three properties.
-The following sections will describe the implementation of the
-non-trivial set operations.
+It can be seen directly that the leafs already satisfy all three 
+properties of the invariant.
+The following sections will describe the implementation 
+and proofs of the non-trivial set operations.
 
 \subsection{The split-Function}
-% Description of the implementation of the set interface.
-
-Naturally the set operations are defined recursively on the nodes of the tree.
-Since each node contains a non-trivial number of elements,
-a function to navigate to the correct separator and subtree is central to all operations.
-
-We call this function \textit{split}-function,
-determining the position in the list of separators and subtrees.
-At the "correct" position, the range spanned by the left subtree
-and the separator is exactly the range in which the desired element
-must be contained if it is contained in the tree.
-At this position, either the separator is equal to the desired value or
-we need to recurse into the left subtree.
-This approach is similar to the one found in the work of Malecha and Fielding \parencite{DBLP:conf/popl/MalechaMSW10,Fielding80}.\footnote{
-    In Fieldings approach the corresponding function is called \textit{index}.
-    Malecha calls it \textit{findSubtree}.
-}
-Usually however, it is integrated into the set-operation
-by a linear search that is promised to be replaced by a more efficient binary search
-in the actual implementation \parencite{DBLP:books/daglib/0023376,DBLP:journals/acta/BayerM72}
-or left in the final code \parencite{DBLP:journals/sosym/ErnstSR15}
-
-The precise inner workings of the split function are not of interest here
-and actually are not supposed to be interesting on the functional level.
-Of course \textit{some} kind of function is required that correctly splits
-the key-value list and an example is given in \Cref{fig:linear_split}.
-In the process of implementing the set specifications,
-this concrete function was used to explore the provability of the set methods.
-However it quickly turned out that 1) only specific lemmas about the split
-function are useful during proofs and 2) only relying on an abstract specification of
-the split method would simplify integrating alternative splitting functions.
-Most notably, the abstraction allows to later plug in a very efficient splitting
-function, e.g. based on binary search.
 
 \begin{figure}
     
@@ -441,56 +464,111 @@ fun linear_split_help where
 fun linear_split:: ('a btree$\times$'a) list $\Rightarrow$ 'a $\Rightarrow$ (_ list $\times$ _ list) where
   linear_split xs x = linear_split_help xs x []
 \end{lstlisting}
+\begin{lemma}
+    \begin{equation*}
+    \lsplitfun\ xs\ x = (\takewhile (\lambda(\_,s).\ s < x)\ xs,\ \dropwhile (\lambda(\_,s).\ s < x))
+    \end{equation*}
+\end{lemma}
 \caption[An implementation of the abstract split function specifications.]
 {An implementation of the abstract split function specifications.
 This functions scans linearly through the list, returning the first tuple where the separator
-or subtree could potentially contain the value $x$}
+or subtree could potentially contain the value $x$.
+As discovered by Peter Lammich,
+it is similar to a combination of library functions, simplifying proofs on its properties.}
 \label{fig:linear_split}
 
 \end{figure}
+% Description of the implementation of the set interface.
 
-Therefore all set functions are defined based the following requirements:
+Naturally, the set operations are defined recursively on the nodes of the tree.
+Since each node contains a number of elements that is not bounded by a constant,
+a generalized function to navigate to the correct separator and subtree
+is central to all operations.\footnote{
+    Opposing to that, in 234-trees determining the correct subtree
+    and separator could be hard coded for every case, as done by Nipkow \parencite{DBLP:conf/itp/Nipkow16}.
+}
+
+We call this function \textit{split}-function.
+It determines the "correct" position in the list of separators and subtrees
+for recursion.
+At this position, the range spanned by the left subtree
+and the separator is exactly the range in which the desired element
+must be contained if it is contained in the tree.
+Hence, either the separator is equal to the desired value or
+we need to recurse into the left subtree.
+The approach of generalizing the tree navigation has
+surprisingly little popularity in the implementations examined.
+Notably, it was implemented in the work of Malecha and Fielding,
+but not described in detail \parencite{DBLP:conf/popl/MalechaMSW10,Fielding80}.\footnote{
+    In Fieldings approach the corresponding function is called \textit{index} and the final implementation is a linear search.
+    Malecha calls it \textit{findSubtree} and looses no more words about it.
+}
+Usually however, it is integrated into the set-operation
+by a linear search that is promised to be replaced by a more efficient binary search
+in the actual implementation \parencite{DBLP:books/daglib/0023376,DBLP:journals/acta/BayerM72}
+or left in the final code \parencite{DBLP:journals/sosym/ErnstSR15}.
+
+The precise inner workings of the split function are not of interest here
+and actually are not supposed to be interesting on the functional level.
+Of course we need to know that \textit{some} kind of function
+exists that correctly splits the key-value list.
+An example is given in \Cref{fig:linear_split}.
+In the process of implementing the set specifications,
+this concrete function was used to explore the provability of the set methods.
+However it quickly turned out that 1) only specific lemmas about the split
+function are useful during proofs and 2) only relying on an abstract specification of
+the split method would simplify integrating alternative splitting functions.
+Most notably, the abstraction allows to later plug in an efficient splitting
+function, e.g. based on binary search.
+
+
+\begin{samepage}
+Therefore all set functions are defined based on an abstract function
+\textit{split} that fulfils the following requirements:
 
 \begin{itemize}
     \item $\splitfun xs\ p = (ls,rs) \Longrightarrow xs = ls @ rs$
     \item $\splitfun xs\ p = (ls@[(sub,sep)],rs) \wedge \sorted (\separators xs) \Longrightarrow sep < p$
     \item $\splitfun xs\ p = (ls,(sub,sep)\#rs) \wedge \sorted (\separators xs) \Longrightarrow p \le sep$
 \end{itemize}
+\end{samepage}
 
-Described in natural language, the split function should return two sublists
+Described in natural language, the split function should return two lists
 that concatenate to the original list.
 Further if the elements came in sorted order,
-the list is split such that the key to the left is strictly less than the desired value
-and the key to the right should be less or equal.
+the list is split such that the key to the left is strictly
+less than the desired value and the key to the right
+should be less or equal.
 
 Note how the split function really only needs to
 consider the separators and not the subtrees themselves.
 By requiring only sortedness of the separators,
-we simplify the proofs of showing that a certain function
-fulfils the split abstraction.
+we weaken the requirements to fulfil the split abstraction.
+However these weakened assumptions are sufficient to guarantee
+functional correctness.
+Sortedness of the whole tree is part of the established invariant of B-trees.
 If the whole tree is sorted, the separators are sorted too.
 We prove this once and from it follows that
-we may use the split function for sorted trees as well.
-
-The abstraction was formulated in a locale.
-Inside the locale we have access to exactly the specified split function,
-without knowing anything about the composition of that function.
+we may use the split function for sorted trees
+and obtain the desired results.
 
 \subsection{Membership tests}
 
 %-------------------------------------------------
 % TODO move to abstract description?
-The simplest operation required in the Set interface is
+The simplest operation required in the set interface is
 the \textit{isin} function.
-It is required to operate on the B-Tree 
-the same way as membership queries on the set abstraction.
+It should return the same value for a B-tree 
+as a membership queries on the set abstraction of the tree.
 % Note reference to i.e. Bauer retrieval algorithm
-The definition in \Cref{lst:isin-fun} also shows exemplary usage of the split function.
+The definition in \Cref{lst:isin-fun} is straightforward 
+and also shows example usage of the split function.
 In case the right part of the split list is non-empty,
-we check the element at that level or recurse in the given subtree.
+we check the element at its head and recurse in the given subtree
+if necessary.
 Otherwise, we may directly recurse to the last tree in the node.\footnote{
-    Since this function recurses on the split function,
-    in order to show that this function terminates, we need to tell
+    This function recurses on results of the split function.
+    In order to show that this function terminates, we need to show
     the system that the obtained subtrees are of smaller size than the current tree.
     Adding this fact to the default termination simplification set resolves
     the issue for all coming functions.
@@ -499,16 +577,16 @@ Otherwise, we may directly recurse to the last tree in the node.\footnote{
 
 \begin{figure}
 \begin{lstlisting}[mathescape=true, language=Isabelle, caption=The \textit{isin} function, label=lst:isin-fun]
-fun isin:: 'a btree $\Rightarrow$ 'a $\Rightarrow$ bool where
-    isin (Leaf) y = False |
-    isin (Node ts t) y = (
-        case split ts y of (_,(sub,sep)#rs) $\Rightarrow$ (
-            if y = sep then
+fun isin :: 'a btree $\Rightarrow$ 'a $\Rightarrow$ bool where
+    isin (Leaf) x = False |
+    isin (Node ts t) x = (
+        case split ts x of (_,(sub,sep)#rs) $\Rightarrow$ (
+            if x = sep then
                 True
             else
-                isin sub y
-        )
-    | (_,[]) $\Rightarrow$ isin t y
+                isin sub x
+        ) | (_,[]) $\Rightarrow$
+            isin t x
     )
 \end{lstlisting}
 \end{figure}
@@ -520,19 +598,19 @@ The following lemma shows the required property of the function
 
 \begin{theorem}
     \label{thm:isin-set}
-    $\sorted (\inorder t) \Longrightarrow \isinfun t\ x = (x \in \setfun (\inorder t))$
+    $\sorted (\inorder t) \Longrightarrow \isinfun t\ x = x \in \setfun (\inorder t)$
 \end{theorem}
 
 It follows by induction on the evaluation of the isin function.
 To prove it, we invoke two specialized lemmas,
 that simplify arguments about the choice of the node for recursion.
-The kind of lemmas are of special interest as they specialize
-an idea proposed in \parencite{DBLP:conf/itp/Nipkow16} and similar lemmas
-are used for the correctness proofs of insert and delete alike.
+The lemmas specialize an idea proposed by Nipkow \parencite{DBLP:conf/itp/Nipkow16}
+and similar lemmas will be used for the correctness proofs of 
+the \textit{insert} and \textit{delete} function.
 
 \begin{lemma} $\sorted (\inorder (Node\ ts\ t) \wedge \splitfun ts\ x = (ls, rs) \Longrightarrow$ \\
     \begin{center}
-    $x \in (\setfun (\inorder (Node\ ts\ t))) = (x \in \setfun (\inorder rs @ \inorder t))$
+    $x \in \setfun (\inorder (Node\ ts\ t)) = x \in \setfun (\inorder rs @ \inorder t)$
     \end{center}
 \end{lemma}
 
@@ -550,11 +628,12 @@ If $rs$ is not empty, we need an additional lemma.
 \begin{lemma}
     $\sorted (\inorder (Node\ ts\ t)) \wedge \splitfun ts\ x = (ls, (sub,sep)\#rs) \wedge sep \neq x \Longrightarrow$ \\
     \begin{center}
-    $x \in (\setfun (\inorder ((sub,sep)\#rs) @ \inorder t)) = (x \in \setfun (\inorder sub))$
+    $x \in \setfun (\inorder ((sub,sep)\#rs) @ \inorder t) = x \in \setfun (\inorder sub)$
     \end{center}
 \end{lemma}
 
-With this lemma we know that the first subtree on the right part of the split
+With this lemma we know that the first subtree
+on the right part of the split result
 is the correct child to recurse into.
 The requirement of $sep \neq x$ is because if $sep = x$,
 no recursion is required at all.
@@ -571,40 +650,44 @@ in contrast to the following tree-modifying operations.
 
 % TODO what is this for?
 %There are not many provably correct functional implementations to our knowledge.
-%However there is a relationship between 234-Trees and B-Trees,
+%However there is a relationship between 234-trees and B-trees,
 %due to which the approach to the functional definition is inspired by the implementation
 %in \parencite{DBLP:conf/itp/Nipkow16}.
-%In that work, a correct implementation of the Set interface for 234-Trees 
+%In that work, a correct implementation of the Set interface for 234-trees 
 %are provided.
 
 The implementation of the insertion function
 as described in \Cref{par:intro-ins} is documented in \Cref{lst:ins-fun}.
-However, rather than manually checking whether the lowest level was reached,
-we recurse until we reach a Leaf node.
-Inserting into it will lead to an overflow that can be handled
+Rather than manually checking whether the lowest level was reached,
+we recurse until we reach a leaf.
+Inserting into it is defined to cause an overflow that will be handled
 by the lowest internal nodes in the same manner as for other internal nodes.
 
-To modularize insertion, the check for the overflow of a nodes list has been
-extracted to the function $node_i$.
-It returns data in a new datatype called $up_i$, which
-carries either a singleton valid B-Tree or two trees and a separator
-that could correctly be part of a node when placed next to each other.
-This construction is useful for handling overflow
-in a functional context and appears similarly in \parencite{DBLP:conf/itp/Nipkow16}.
-
 The $ins$ function is a recursive helper function,
-that recurses down into the correct leaf node for inserting the desired element.
-The recursive call may have caused an overflow in a lower node.
-If an overflow occured, an additional element and
-new subtree is inserted into the
-current nodes list with the help of \textit{node}$_i$,
-the result of which is again of type $up_i$ to indicate to
-the parent whether overflow occurred.
-If no overflow occured we may directly return $T_i$ of the current node
-to indicate no overflow.
+that recurses down into the correct leaf node for insertion.
+As a possible intermediate result of insertion
+may be two trees that are the result of an obligatory split,
+it returns data in a new datatype called \textit{up}$_i$.
+This datatype carries either a singleton valid B-tree or two trees and a separator
+that could correctly be part of a node when placed next to each other.
+The original subtree is replaced by
+the result of the recursive call.
+If an overflow occured in the lower node, the additional element and
+subtree are inserted into the current node list
+after the element that flowed over.
+The resulting list may have an overflow itself.
+
+To modularize insertion, the check for the overflow of
+the nodes list has been
+extracted to the function \textit{node}$_i$.
+In case the node that was passed in violates the order invariant,
+it performs the splitting and returns two trees and the additional separator.
+This construction is useful for handling overflow
+in a functional context and appears similarly in the
+verified functional 234-tree implementation by Nipkow \parencite{DBLP:conf/itp/Nipkow16}.
 
 Finally, the \textit{insert} function calls the \textit{ins} helper function
-and transforms the result into a valid B-Tree.
+and transforms the result into a valid B-tree by allocating a new root if necessary.
 
 \begin{figure}
     
@@ -666,45 +749,44 @@ fun insert::nat $\Rightarrow$ 'a $\Rightarrow$ 'a btree $\Rightarrow$ 'a btree w
 \end{figure}
 %TODO
 
-To fulfil the Set interface requirements,
+To fulfil the set interface requirements,
 we need to show that this function preserves the invariants
 and acts the same as inserting element $x$ into the inorder list of the tree.
-
-Note that for the above proofs, a separate notion of height, balancedness and order
-was introduced for the $up_i$ datatype.
-Height and balancedness are
-defined such that the property is invariant to splitting and merging of nodes.
-For example, "$\height ts\ t = \heightup_i (\node_i k\ ts\ t)$".
-Note that this is not the same as applying the original functions
-to the tree obtained by tree$_i$.
-Order of up$_i$ elements however simply subsumes that all subtrees have
+Note that for these proofs, a separate notion of height, balancedness, order
+and inorder had to be introduced for the \textit{up}$_i$ datatype.
+Height, balancedness and inorder are
+defined such that they are invariant to splitting and merging of nodes.
+For example, "$\height ts\ t = \height^{up_i} (\node_i k\ ts\ t)$".
+The modified order function simply subsumes that all subtrees have
 the given order.
 Naturally, making a one-element tree of an up$_i$ element will thus
 give a node of root-order, while inserting the elements
 will not violate the recursive order requirement.
 
-Proving the balancedness invariant requires as additional lemma that
-the height is invariant under insertion.
+Proving that balancedness is invariant 
+under insertion requires an additional lemma,
+namely that the height is also invariant under insertion.
 Technically, height preservation is only required when modifying balanced
 trees, however we have shown the stronger statement that this is even the case for non-balanced trees.
 This follows by induction using the
-associativity and commutativity of the maximum function
-and with it the proof for balancedness follows much the same way.
+associativity and commutativity of the maximum function.
+With height invariance, the proof for balancedness follows much the same way.
 Overall, the fact that the operation does preserve balancedness and
-height should come at no surprise.
+height should come at no surprise to the reader.
 After all, the operations are never directly affecting the height of any tree,
-and the all trees generated by splitting a node comprise trees
-that had been there before, now simply distributed along to node
+and all trees generated by splitting a node comprise trees
+that had been there before, now simply distributed along to two nodes
 in the same level.
 
 \begin{lemma}
     \begin{align*}
-    \height t & = \height (\insfun_k x\ t) \\
-    \bal t & \Longrightarrow \bal (\insfun_k x\ t)
+    \height t & = \height^{up_i} (\insfun_k x\ t) \\
+    \bal t & \Longrightarrow \bal^{up_i} (\insfun_k x\ t)
     \end{align*}
 \end{lemma}
 
-Now for the proof of preserving the order invariant.
+The order invariant is the second property that needs
+to be shown to stay invariant.
 Since the central function to ensure order is the node$_i$ function,
 we first show the following lemma:
 
@@ -727,22 +809,22 @@ Given the constraint on the maximum length of $ts$
 this will always be below or equal $2k$.
 Further, as we require a size of at least $2k+1$ elements for a split to occur,
 the resulting nodes each have at least $k$ elements.
-The argument hardly changes comparing the upper bounds $2k+1$ and $4k+1$,
-but with the former upper bound it can be used for merging nodes
+This argument hardly changes comparing the upper bounds $2k+1$ and $4k+1$,
+but with the weaker upper bound \textit{node}$_i$ can be used for merging nodes
 in the deletion function as well.
 
 Using the above, the order invariant for \textit{ins}
 follows quite directly by induction.
 
 \begin{lemma}
-    $\order_k t \Longrightarrow \order_k (\insfun_k x\ t)$
+    $\order_k t \Longrightarrow \order^{up_i}_k (\insfun_k x\ t)$
 \end{lemma}
 
-Since the invariant on B-Trees only requires a root order of $k$ on the
-root, we additionally derive versions of the invariants
-for root order.
+Since the invariant on B-trees only requires root order of $k$ on the
+tree, we had to additionally derive versions of
+these invariants for this weaker order.
 They are straightforward however as all trees in the inductive case
-have order $k$, for which preservation was already proven.
+have order $k$, for which preservation was just proven.
 Putting things together, we obtain preservation of the invariants.
 
 \begin{theorem}
@@ -757,8 +839,8 @@ that has the same inorder view as the original inorder with the element
 inserted at the correct position.
 
 Looking at the \textit{ins} function in \Cref{lst:ins-fun},
-we see that in an inductive proof the main obligation
-is to argue for the choice of the subtree in case of recursion.
+we see that, in an inductive proof, the main obligation
+is to argue for the choice of the subtree for recursion.
 Similar to the proof of \Cref{thm:isin-set},
 we use two auxiliary lemmas, that turn the remaining
 proof in simple case distinctions and chains of equations.
@@ -790,16 +872,16 @@ which follows simply by induction on the list.
     $\sorted xs \wedge x \in \setfun xs \Longrightarrow \inslist x\ xs = xs$
 \end{lemma}
 
-The above lemmas are all we need to show correctness
+The above lemmas are sufficient to show correctness
 of the \textit{ins} function inductively.
 The theorem for \textit{insert} follows again automatically,
 which concludes the proof of the insertion part.
 
 \begin{theorem}
     \label{thm:ins-set}
-    $\order_k t \wedge \bal t \wedge \sorted  (\inorder t)\Longrightarrow$\\
+    $\sorted  (\inorder t)\Longrightarrow$\\
     \begin{center}
-    $\inorder (\insertfun_k x\ t) = \insertfun_{list} x\ (\inorder t)$
+    $\inorder (\insertfun_k x\ t) = \insfun_{list} x\ (\inorder t)$
     \end{center}
 \end{theorem}
 
@@ -841,8 +923,8 @@ fun rebalance_last_tree where
 
 The procedures described in \Cref{par:intro-del}
 are implemented here with a
-certain flavor due to the setup of B-Trees.
-The $rebalancing$ as implemented in \Cref{lst:rebalance-def}
+certain flavor due to the setup of B-trees.
+The \textit{rebalancing} as implemented in \Cref{lst:rebalance-def}
 comprises merging and splitting neighboring nodes.
 For simplicity of the function and proofs, we always
 merge with the right sibling.
@@ -855,28 +937,36 @@ The reason is that rebalancing leafs may only happen if it is preceded
 by deletion from a leaf - which does not change the tree at all.
 
 The other detail is regarding the \textit{split\_max} function
-defined in \Cref{lst:del-def}.
+employed when deleting elements from inner nodes.
+It is defined in \Cref{lst:del-def}.
 Here some freedom exists whether to swap with the maximum lesser
 or the minimum greater element in the tree.
 In our setup, the last tree of the node is explicitly stored in each node
 and the left subtree of a separator lies within the same
 pair inside the node list.
 Using pattern matching, it is hence significantly
-easier to obtain the maximum of the left subtree
-than the minimum of the right subtree.
+easier to obtain the maximum of the left subtree,
+than than to obtain the minimum of the right subtree.
 Therefore we will always swap with the former, maximal lesser element.
 %---------------------------------------------------------
 
 The most interesting property for the rebalancing operations is the order property,
-which is meant to be restored after potential underflows.
+which is meant to be restored after underflows.
 It is important to note here that we cannot guarantee
 that at least one element remains in the node that
 is passed back upwards.
-However we can guarantee that all subtrees of the result are of order $k$
-and that there are no more than $2k$ elements in the result.
+This violates even the weakest order formulation up until now,
+the root order invariant.
+Hence before making the result of rebalancing
+a final tree, we need to recover root order.
+We can guarantee that all subtrees of the result are of order $k$
+and that there are no more than $2k$ elements in the result,
+which is sufficient.
 We say that if a tree $t$ has at most $2k$ elements
 and all subtrees of $t$ have order $k$, then $t$ has
- \textit{almost order} of $k$, or $\order^a_k t$.
+\textit{almost order} $k$ ($\order^a_k t$).
+Using this new definition we formulate the invariant for
+the rebalancing operation.
 
 \begin{lemma}
     If all subtrees in ls, rs are of order k 
@@ -889,23 +979,29 @@ and all subtrees of $t$ have order $k$, then $t$ has
 
 It might be suprising that we require all subtrees to have equal height
 for this operation.
-However, a close look at \Cref{lst:rebalance-def} clarifies that
-in order to successfully rebalance an internal node, we need neighboring
+However, a close look at \Cref{lst:rebalance-def} may clarify this requirement.
+In order to successfully rebalance an internal node, we need neighboring
 nodes that are not leafs.
 As this fact is already expressed in the pattern matching of the function,
-it is simply \textit{undefined} for unbalanced trees.
-But we know that the B-Tree is always balanced, so we may assume it for all proofs
+it is simply \textit{undefined} if not all subtrees have equal height.
+But we know that B-trees are always balanced,
+so we may assume equal subtree height for all proofs
 involving \textit{rebalance\_middle\_tree}.
-
 For this proof, we re-use \Cref{lem:nodei-order},
 as two nodes of order $k$ will always contain
 a maximum of $4k+1$ separators.
-The case that the subtree and separator list becomes zero
-is exactly when a root with minimal size underflows.
-After this operation the tree shrinks in height.
+
+As mentioned, the result may have an empty list as key-value list.
+This happens exactly when one of the two subtrees of a root
+with minimal size underflowed.
+After this operation, the tree shrinks in height.
 The shrinked tree then is exactly the one remaining subtree in the original node.
 See the operation \textit{reduce\_root} in \Cref{lst:del-def} for the exact implementation
 of this step.
+Since rebalancing always restores $\order k$ for all subtrees
+of the current node and \textit{delete} employs \textit{reduce\_root},
+the final result always has at least $\order^r k$.
+
 
 \begin{figure}
 \begin{lstlisting}[mathescape=true, language=Isabelle,label={lst:del-def},
@@ -953,30 +1049,28 @@ fun delete where delete k x t = reduce_root (del k x t)
     \caption[An example B-Tree after two deletion operations]{The tree from \Cref{fig:btree-basic-ins} after 
     successive deletion of $10$ (top) and $3$ (bottom).
     Note how the final result differs from approaches that would only steal single elements
-    from neighbors to hanlde underflow.}
+    from neighbors to handle underflow.}
     \label{fig:btree-basic-del}
 \end{figure}
 
-From this fact follows further, that for the results of all intermediate functions
-in the deletion process, $\order^a k$ of the results can be guaranteed.
-Since the last subtree in the result of deletion has order $k$,
-and for more than one subtree the node has root order,
-the result of \textit{delete} always has at least $\order^r k$.
-
 The proofs for balancedness invariance follow similarly to
 the ones in \Cref{sec:abs-ins} by first showing height invariance.
-The properties follow using the associativity
+Both properties follow using the associativity
 and commutativity of the maximum operation.
-The proof of height, balancedness and order
-are interleaved among the proofs for the
-intermediate functions, especially
-\textit{split\_max} and \textit{rebalance\_middle\_tree},
-which are only well defined for balanced trees
-and \textit{split\_max}, which requires at least
-one element in the node list, an equivalent
-to $\order^r k$.
+\footnote{
+    When inspecting the proof documents,
+    one will notice that the proof of height, balancedness and order
+    are interleaved for the
+    intermediate functions, especially
+    \textit{split\_max} and \textit{rebalance\_middle\_tree}.
+    This is due to the fact that these operations
+    are only well defined for balanced trees.
+    Moreove \textit{split\_max} requires at least
+    one element in the node list, an equivalent
+    to $\order^r k$.
+}
 
-With the basic functionalities covered,
+With the basic operations covered,
 the invariant preservation of the \textit{del} function
 can be derived inductively.
 Note that the function will return a tree of almost order $k$,
@@ -984,32 +1078,36 @@ where the remaining root-underflow is coverered by \textit{reduce\_root}.
 Moreover we do not need an additional lemma
 for an input with nodes that have normal order $k$.
 As $k > 0$, order $k$ implies a root order of $k$.
-And even though that it might be beneficial to know
-the input to have normal order, this is not the case.
-Since the rebalancing functions do only require
-almost order $k$ to return normally ordered trees,
-the resulting list will always be sufficient.
+And even though it might seem to be beneficial to know
+whether the input has normal order or root order, this is not the case.
+The rebalancing functions only require
+almost order $k$ and return a list of trees of valid order.
+We are never interested in the length of that list itself
+until reaching the root, so we are satisfied with statements
+on the order of subtrees,
+which are made by almost order $k$ sufficiently.
 
 \begin{lemma}
     $k > 0 \wedge \order^r_k t \wedge \bal t \Longrightarrow
-    \order^a_k (\delfun_k x\ t) \wedge \bal (\deletefun_k x t)$
+    \order^a_k (\delfun_k x\ t) \wedge \bal (\delfun_k x t)$
 \end{lemma}
 
-Putting together the proofs on balancedness and
-order, we obtain the fact about the invariant
-preservation of the deletion function that is required by the set interface.
+From this and our inspection of \textit{reduce\_root}
+follows almost directly the fact about the invariant
+preservation of \textit{delete}.
 
+\begin{samepage}
 \begin{theorem}
     $k > 0 \wedge \order^r_k t \wedge \bal t \Longrightarrow$ \\
     \begin{center}
     $\order^r_k (\deletefun_k x\ t) \wedge \bal (\deletefun_k x t)$
     \end{center}
 \end{theorem}
+\end{samepage}
 
 Note that now (as opposed to insertion) $k > 0$ is required.
-The main reason is that, while it was not too important for most of the proofs until now,
-B-Trees do only work for positive $k$.
-If $k = 0$, rebalancing would not always work anymore
+The main reason is that,
+if $k = 0$, rebalancing would not always work anymore
 as we could not be certain to have at least two subtrees per node.
 
 In order to prove that \textit{delete} acts the same as
@@ -1019,32 +1117,33 @@ For the \textit{del} helper function,
 we use the same specialized lemmas
 as for \Cref{thm:isin-set} and \Cref{thm:ins-set}
 and induct over the execution of the \textit{del}-function.
-% TODO state or no state?
-
-Rather than stating the specialized lemmas again at this point, we would like to point
+% TODO state or no state? 
+Rather than stating the specialized lemmas again, we would like to point
 out the elegance of the inorder method at this point.
 
-The reason the rebalancing functions preserve the sortedness and set properties
+The reason the rebalancing operations preserve the sortedness and set properties
 is plain when considering the inorder view of the tree:
 it does not change at all.
 A manual proof about the set and sortedness properties
 would require complicated, unnecessarily lengthy proofs.
 For the inorder view, 
-since the results can be easily simplified, even without recursive calls,
-the property follows automatically.
+since the definition can be easily simplified,
+not even involving recursive calls,
+the following property can be shown automatically.
 
 \begin{lemma}
     \label{lem:rebalance-inorder}
     All subtrees have the same height $\Longrightarrow$ \\
-    \begin{equation*}
-    \inorder (\rebalancemt_k ls\ sub\ sep\ rs\ t) =\\
-    \inorder (Node (ls@(sub,sep)\#rs)\ t)
-    \end{equation*}
+    \begin{align*}
+    \inorder&\ (\rebalancemt_k ls\ sub\ sep\ rs\ t) =\\
+    \inorder&\ (Node\ (ls@(sub,sep)\#rs)\ t)
+    \end{align*}
 \end{lemma}
 
 Considering the function split\_max,
 the standard approach would require showing
-tideously that the element returned is in fact the maximum of the whole tree
+tideously that the element returned is in fact the maximum
+of the left subtree
 and showing that the remaining tree union the maximum element
 gives the whole original tree set.
 Instead we simply show the following,
@@ -1052,33 +1151,30 @@ comprising both facts:
 
 \begin{lemma}
     \label{lem:splitmax-inorder}
-    If t has more than two subtrees, and the last two are equally high, then
+    If t has more than two subtrees, and the last two have equal height, then
     \begin{equation*}
-    \inorder (\splitmax_k t) = \inorder t
+    \inorder\ (\splitmax_k t) = \inorder t
     \end{equation*}
 \end{lemma}
 
 This fact follows easily by induction on the computation of split\_max,
 using \Cref{lem:rebalance-inorder}.
-
-The reason that the proof of these functions follows so easily
-lies in the intention behind the definition of both functions.
-Together with the fact that the remaining tree is balanced and
-fulfils a certain order property, the inorder view
-is not meant to change.
-We obtain the same elements, in the same order,
-just now in a configuration from which we can obtain
-a new, valid, B-Tree.
+The reason that these proofs follow so easily
+is the intention behind the definition of both operations.
+The idea is to obtain the same elements, in the same order,
+just now in a configuration from which we can easily obtain
+a new, valid B-tree.
 
 Finally we obtain the last important property of the set interface.
 \begin{theorem}
     $k > 0 \wedge \order^r_k t \wedge \bal t \wedge \sorted  (\inorder t)\Longrightarrow$\\
     \begin{center}
-    $\inorder (\deletefun_k x\ t) = \deletefun_{list} x\ (\inorder t)$
+    $\inorder\ (\deletefun_k x\ t) = \delfun_{list} x\ (\inorder t)$
     \end{center}
 \end{theorem}
 
-With this, the implementation the set interface by
-our implementation of B-Trees is proven correct.
-The next step towards imperative B-Trees is to implement
-an imperative refinement of the set operations.
+With this, we have proven that 
+our implementation of B-trees is proven correct
+fulfils the specifications of the set interface based on an inorder view.
+The next step towards imperative B-trees is to implement
+an imperative refinement of these set operations.

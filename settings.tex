@@ -69,9 +69,9 @@
 }
 
 \newtheorem{theorem}{Theorem}[section]
-\newtheorem{corollary}{Corollary}[theorem]
-\newtheorem{lemma}[theorem]{Lemma}
-\newtheorem{definition}[theorem]{Definition}
+\newtheorem{corollary}{Corollary}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{definition}{Definition}[section]
 
 % writing functions in math expressions
 \let\div\relax
@@ -98,6 +98,9 @@
 \DeclareMathOperator{\slimnode}{slim\_node}
 \DeclareMathOperator{\slimtree}{slim\_tree}
 \DeclareMathOperator{\splitfun}{split}
+\DeclareMathOperator{\lsplitfun}{linear\_split}
+\DeclareMathOperator{\takewhile}{takeWhile}
+\DeclareMathOperator{\dropwhile}{dropWhile}
 \DeclareMathOperator{\splitmax}{split\_max}
 
 \DeclareMathOperator{\emptyfun}{empty}
@@ -191,8 +194,10 @@
     bin\_split,%
     imp\_split,%
 % pfa
-    Array.nth,%
-    Array.upd,%
+    Array,%
+    upd,%
+    nth,%
+    array\_ensure,%
     array\_shrink,%
     array\_shr,%
     blit,%

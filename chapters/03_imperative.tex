@@ -4,17 +4,17 @@
 \chapter{Imperative B-Trees in Isabelle}\label{chapter:imp-set}
 
 In the previous chapter, we have seen
-an abstract definition of B-Trees and the reasoning
+an abstract definition of B-trees and the reasoning
 behind its correct implementation of the set interface.
 However, the specification would not yield 
 efficiently executable code.
 % main difference: specify allocation of data
 The reason is that the abstract specification works with
 the persistent datatypes of nodes and lists.
-This way, trivially no data is unknowingly
+This way, trivially, no data is unknowingly
 modified or corrupted,
 however this is at the cost of computational efficiency
-as changes require do allocate memory for completely new object.
+as changes require allocating memory for a completely new object.
 
 In order to obtain an efficient implementation
 on ephemeral data structures common to imperative languages,
@@ -24,16 +24,16 @@ The imperative code can then be translated to
 the languages Scala \parencite{OderskyScala} and SML \parencite{DBLP:books/daglib/0069232}
 using the code generation
 facilities in Isabelle/HOL \parencite{Haftmann20codegeneration}.
-However, since these facilities are extensible,
-code extraction is not limited
-to these languages.
+However, code extraction is not limited
+to these specific languages
+since the code generator is extensible.
 
 \section{Refinement to Imperative/HOL}
 
 The proofs of correct behavior for our imperative
-code are stated separation logic \parencite{DBLP:conf/lics/Reynolds02},
-an extension of Hoare Logic.
-It was formalized in Isabelle/HOL by \parencite{DBLP:journals/jar/Lammich19}
+code are stated in separation logic
+an extension of Hoare Logic invented by Reynolds \parencite{DBLP:conf/lics/Reynolds02}.
+It was formalized in Isabelle/HOL by Lammich \parencite{DBLP:journals/jar/Lammich19}
 and comes with a framework that simplifies reasoning about
 its expressions.
 
@@ -43,8 +43,8 @@ Separation logic provides a way to reason about mutable resources
 that lie in separated parts of an external heap,
 an abstracted memory device.
 The assumptions on the state of the heap are called \textit{assertions}.
-They are specified as formulae that hold for specific heap states.
-The basic assertions used in this work follow.
+They are stated as formulae that hold for specific heap states.
+The basic assertions used in this work are the following:
 
 \begin{itemize}
     \item \textit{emp} holds for the empty heap
@@ -60,6 +60,8 @@ The basic assertions used in this work follow.
     and the areas of the heap described by each assertion are non-overlapping
 \end{itemize}
 
+The last assertion is key to enabling reasoning about local
+parts of the heap.
 With the tools provided by separation logic,
 we well prove our imperative implementations correct
 by showing that they refine the abstract implementation in \Cref{chapter:abs-set}.
@@ -84,31 +86,32 @@ We can then specify Hoare Triples on assertions,
 to encapsulate statements about imperative programs.
 
 \begin{definition}{Hoare Triple}
-    $\langle$ P $\rangle$ c $\langle \lambda r. $ Q r $\rangle$ \\
-    holds iff if assertion $P$ holds on some heap before operation $c$
+    $\langle$ P $\rangle$ c $\langle \lambda r. $ Q r $\rangle$ holds iff \\
+    if assertion $P$ holds on some heap before operation $c$
     is executed on the heap,
     and operation $c$ returns some $r$, then assertion $Q$ holds
-    for $r$ and on the modified heap
+    for $r$ and on the heap modified by $c$
 \end{definition}
 
 A simple example Hoare Triple is 
 $\langle$ id\_assn $a$ $b$ $\rangle$ return $b$ $\langle \lambda r.$ id\_assn $a$ $r$ $\rangle$.
 In the refinement process, we will use more complex relationship assertions
-on the input $b$ to some object $bi$ and show that the value $r$ returned
-by the imperative program satisfies a relationship to the output of the refined
-function applied to $bi$.
-Further we use the shorthand notation $\langle\ P\ \rangle\ c\ \langle \lambda r.\ Q\ r\ \rangle_t$
-which stands for $\langle\ P\ \rangle\ c\ \langle \lambda r.\ Q\ r\ * true\ \rangle$.
-Since $true$ holds for any heap, this part of the statement may be used to subsume
-all temporary and discarded variables.
+between some abstract $b$ and some refined $bi$.
+We then show that the value $r$ returned
+by the imperative program \textit{imp\_op} satisfies the same relationship
+to \textit{op} $b$ where \textit{op} is the refined abstract specification.
+Further we use the notation $\langle\ P\ \rangle\ c\ \langle \lambda r.\ Q\ r\ \rangle_t$
+as a shorthand for $\langle\ P\ \rangle\ c\ \langle \lambda r.\ Q\ r\ * true\ \rangle$.
+Since $true$ holds for any heap, this part of the assertion
+may be used to subsume all temporary and discarded variables.
 
 Refining all set operations from \Cref{chapter:abs-set}
 will yield imperative code that operates on the heap
-with option to use efficient destructive updates.
+with the  option to use efficient destructive updates.
 We do not need to show that the operations themselves
 satisfy the requirements of the set interface.
 Instead we merely need to show that the imperative code
-acts on a concretized version of the B-Trees
+acts on a concretized version of the B-trees
 the same way as the abstract operations on the abstract version.
 
 % TODO note what to introduce here
@@ -119,52 +122,52 @@ the same way as the abstract operations on the abstract version.
 
 \subsection{Refinement of abstract lists}
 
-In the imperative collection framework\parencite{DBLP:journals/jar/Lammich19},
+In the imperative collection framework by Lammich
+\parencite{DBLP:journals/jar/Lammich19},
 the abstract datatype list is usually
 refined to a dynamic array like data structure.
 It comprises an array and a natural number,
 where the latter denotes the current number of elements
 stored in the array.
-B-Tree nodes do not always contain a constant number of elements,
+B-tree nodes do not always contain a constant number of elements,
 which is why this property should be transferred to
 the data structure refining key-value lists. 
 
-% TODO intended physical storing of B-Tree on pages of memory
+% TODO intended physical storing of B-tree on pages of memory
 % --> partially filled array, non-dynamic!
 However, dynamic arrays are designed to grow and shrink
 as elements are inserted and deleted.
-B-Trees were invented to be stored on slow hard disks.
-As one disk access loads a chunk of data into a page of main memory,
-nodes of roughly this size make the most efficient use of the loading times.
-\parencite{DBLP:journals/acta/BayerM72}
+B-trees were invented to be stored on slow hard disks.
+As one disk access loads as much data as fits into a page of main memory,
+nodes of roughly this size make the most efficient use of an access
+\parencite{DBLP:journals/acta/BayerM72}.
 %TODO give clear reason
 Therefore the data structure to store the node content
-should reserve a fixed amount of data, independent
-of the actual number of keys and children.
+should reserve arrays of fixed size, independent
+of the actual number of keys and children contained.
 
 Based on the definition of dynamic arrays in the 
 imperative collection framework,
-we therefore introduce a simpler data structure,
+we introduce a simpler data structure,
 the \textit{partially filled array},
 that keeps count of currently inserted elements,
 but does neither grow nor shrink.
-Abstractly, we refine lists in the functional B-Trees to this
-data-structure.
-A list $l$ is represented by a partially filled array $(a,n)$,
-if the array $a$ represents a list $l'$, of which the first $n$
-elements form list $l$.
+A list $ls$ is represented by a partially filled array $(a,n)$
+if the array $a$ represents a list $ls'$, of which the first $n$
+elements form list $ls$.
 Formally,
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 
 datatype 'a pfarray = 'a array $\times$ nat
 
-definition is_pfa where c l $\equiv$
-    $\lambda$(a,n). $\exists_A$ l'. a $\mapsto_a$ l' *  $\uparrow$(c = length l' $\wedge$ n $\le$ c $\wedge$ l = (take n l'))
+definition is_pfa :: nat $\Rightarrow$ 'a list $\Rightarrow$ 'a pfarray where
+    is_pfa c ls (a,n) =
+        $\exists_A$ ls'. a $\mapsto_a$ ls' *  $\uparrow$(c = length ls' $\wedge$ n $\le$ c $\wedge$ ls = (take n ls'))
 \end{lstlisting}
 
-where $c$ is the $capacity$ of the array, that is the actual allocated size
-of the array on the heap.
+where $c$ is the $capacity$ of the array,
+the actually allocated size of the array on the heap.
 All references to lists in the abstract datatype $btree$
 will in the imperative version be refined to partially filled arrays.
 
@@ -173,8 +176,8 @@ from the set operation specification in \Cref{chapter:abs-set} alone
 it is not determined which operations are supposed to be conducted
 in-place and which will require copying data.
 To obtain the most efficient code we therefore manually
-define the following operations to replace complex composite
-operations based on list construction and concatenation.
+define the operations in \Cref{lst:pfarray-def} to replace complex composite
+operations based on list construction and catenation.
 
 % abstract function has length, insertion, take/drop
 % --> concrete implementations
@@ -183,10 +186,10 @@ operations based on list construction and concatenation.
     caption={Important Partially Filled Array functions for Insertion.}]
 definition pfa_length $\equiv$ $\lambda$(a,n). return n
 
-definition pfa_get $\equiv$ $\lambda$(a,n) i. Array.nth a i
+definition pfa_get $\equiv$ $\lambda$(a,n) i. Array.nth a i (* returns the nth element in array a *)
 
 definition pfa_set $\equiv$ $\lambda$(a,n) i x. do {
-    a $\leftarrow$ Array.upd i x a;
+    Array.upd i x a; (* sets the element at position i in a to value x *)
     return (a,n)
 }
 
@@ -203,9 +206,9 @@ definition pfa_drop $\equiv$ $\lambda$(src,sn) si (dst,dn). do {
 }
 
 definition pfa_insert $\equiv$ $\lambda$(a,n) i x. do {
-  a' $\leftarrow$ array_shr a i 1; (* shifts elements to the right by 1 *)
-  a'' $\leftarrow$ Array.upd i x a;
-  return (a'',n+1)
+  array_shr a i 1; (* shifts elements from index i on to the right by 1 *)
+  Array.upd i x a;
+  return (a,n+1)
 }
 
 definition pfa_ensure $\equiv$ $\lambda$(a,n) k. do {
@@ -228,7 +231,7 @@ $\dots$
 During the splitting of nodes, a part of the overflowing
 list is copied into another array.
 The operation to copy data is based on the function $blit$,
-that copies a slice of an array to the starting position of another array.
+that copies a slice of an array to a slice of another array.
 The function already existed in the standard collection and could be reused
 to define the \textit{pfa\_drop} function in \Cref{lst:pfarray-def}, which in this implementation copies data to a new array.
 
@@ -246,19 +249,22 @@ and conditionally calling either copy function,
 loss-free in-place copying was achieved.
 The resulting function is conveniently agnostic to the direction
 of the copying, just as the respective implementations
-in target languages.\footnote{
+in target languages for code extraction.\footnote{
     See for example \href{https://caml.inria.fr/pub/docs/manual-ocaml/libref/Array.html}{the specification of \texttt{Array.blit} in Ocaml} or
     the \href{https://smlfamily.github.io/Basis/array-slice.html\#SIG:ARRAY_SLICE.copy:VAL}{\texttt{ArraySlice.copy} specification in SML}.
 }
 The \textit{pfa\_insert} function in \Cref{lst:pfarray-def} makes
 implicit use of in-place copying by calling a function to shift elements
 to the right by one.
+This is achieved by copying the slice of elements
+from position $i$ to the end of the list
+to the slice $i+1$ to the end of the list.
 The element to be inserted is then placed in the remaining free spot.
 
 For all functions in \Cref{lst:pfarray-def},
 appropriate Hoare Triples were derived.
-All triples are straightforward to derive which is why they are not
-listed listed in great detail.
+All triples are straightforward to derive but the reader is encouraged
+to look them up in the proof documents.
 To roughly sketch the obtained lemmas, the two examples
 \textit{pfa\_drop} and \textit{pfa\_shrink} are investigated below.
 The most important difference is whether
@@ -288,8 +294,9 @@ The only thing that changed is the content of $di$.\footnote{
     and is hence abstracted here.
 }
 The $take$ function was refined differently.
-The cheapest and in our context consistent option is
-reducing the number of elements that are considered part of the represented list
+The cheapest and in our context consistent way to
+implement $take$ is to
+reduce the number of elements knowingly stored in the array
 from $n$ to $k$.
 The result is that the original array gets modified and we loose any information
 about the content that is written beyond given $k$.
@@ -310,15 +317,15 @@ The only missing piece is an imperative split function.
 
 \section{Set-Operations}
 
-With refinements for all basic components in the B-Tree set operations,
-the B-Tree datatype itself can be refined.
+Having covered the refinement for the list datatype,
+the B-tree datatype itself can be refined.
 Rather than actually storing nodes within lists,
-the B-Tree nodes are supposed to be stored in the heap,
-only storing pointers to other nodes in the element list.
+the B-tree nodes are supposed to be stored in the heap,
+and the node list will only contain pointers to the corresponding nodes.
 Since the Imperative Refinement Framework does not support null pointers,
-B-Tree nodes are refined by heap reference \textit{options} instead.
+B-tree nodes are refined by heap reference \textit{options} instead.
 None represents leafs or empty trees.
-The physical B-Tree datatype does hence only need to cover the case
+The physical B-tree datatype does hence only need to cover the case
 of actually being an inner node.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
@@ -330,7 +337,7 @@ Note the similarity to \Cref{lst:btree-def},
 only that \textit{btree} was replaced by \textit{btnode ref option}
 and \textit{list} was replaced by \textit{pfarray}.
 
-An abstract B-Tree is represented by such a physical node
+An abstract B-tree is represented by such a physical node
 if all references on subtrees represent the corresponding
 abstract subtrees and all keys are the same.
 
@@ -358,11 +365,11 @@ This fact is expressed by the list assumption term in the assumption.
 Second, the list itself is refined to an array.
 This is expressed in the term about the partially filled array relationship.
 Since the list assumption makes recursive use of the
-B-Tree assumption, this is however a very convenient
+B-tree assumption, this is however a very convenient
 way of expressing the desired relationship.
 
 Using the parameters of \textit{is\_pfa},
-note that we can specify that every node of a B-Tree should have
+note that we can specify that every node of a B-tree should have
 capacity for $2k$ elements.
 
 \subsection{The split function}
@@ -481,7 +488,7 @@ This is great to know since the previous lemma
 follows directly from the computation and is closely related
 to the loop invariant.
 \footnote{Another, albeit more theoretical,
-reason for excitement is that now we can specify an imperative B-Tree
+reason for excitement is that now we can specify an imperative B-tree
 specification without any reference to the abstraction.
 We simply always use the well known split function in the abstraction
 and only require a post condition similar to the one just shown
@@ -581,7 +588,7 @@ naturally that the list of separators must be sorted.
 
 Since we know that this implies equivalence to the abstract split function
 and sortedness of the separators is guaranteed by the sortedness
-invariant of the B-Trees,
+invariant of the B-trees,
 we can safely use this function for specifying
 the set operations.
 
@@ -748,7 +755,7 @@ An excerpt of the ins function can be seen in \Cref{lst:imp-ins-fun}.
 The function includes some optimizations, such as not calling
 \textit{node$_i$} if the node is not overflowing.
 This is an optimization as otherwise \textit{node$_i$} in
-\Cref{lst:imp-nodei-fun} would always allocate a new B-Tree node
+\Cref{lst:imp-nodei-fun} would always allocate a new B-tree node
 rather than updating the current node in place.
 
 To prove that this optimization is valid, the only obligation

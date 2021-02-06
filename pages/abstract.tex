@@ -28,9 +28,14 @@ usage of a heap.
 The implementation is shown to again refine the functional program
 using the separation logic utilities for the Isabelle Refinement Framework due to
 Lammich \parencite{DBLP:journals/jar/Lammich19}.
+Further the implementation is kept general to support different
+searching algorithms within nodes.
+We provide a final version that works with a linear search
+and one that supports binary search within the node.
 The result is a proof of the functional correctness
 of an imperative implementation of the B-Tree data structure
-that supports set membership and insertion queries.
+that supports set membership and insertion queries
+and uses efficient binary search for intra-node navigation.
 
 From the specification, automatic executable code extraction to
 several functional programming languages is supported.

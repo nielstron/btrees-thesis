@@ -400,8 +400,9 @@ and an actually executable function is provided in the second refinement step.
 On this level, only arguments on the invariants are made.
 In a second step B-trees are considered more concretely to contain
 sorted lists of children and keys.
-Here the argument for invariant preservation is due to the implementation
-having the same structure as the implementation in the abstract context.
+Here the argument for invariant preservation is informally
+that the refined implementation
+has the same structure as the abstract implementation.
 Final imperative PASCAL code is given, derived by hand
 imitating the functional style implementations and extended by assertions.
 
@@ -422,9 +423,9 @@ for proofs on our imperative implementation.
 The specification by Sexton is given as an abstract machine rules,
 somewhat more abstract than pure code but operating on a stack
 much like we expect imperative programs to operate with pointers on a heap.
-We therefore categorize this as a direct proof on an imperative implementation.
+We therefore categorize this as a direct verification of an imperative implementation.
 
-Of these imperative implementations, also two machine checked proofs exist.
+Among imperative implementations, two machine checked proofs exist too.
 In the work of Ernst \parencite{DBLP:journals/sosym/ErnstSR15},
 an imperative implementation is directly verified
 by combining interactive theorem proving 
@@ -436,7 +437,7 @@ was conducted by Malecha \parencite{DBLP:conf/popl/MalechaMSW10}, with the YNOT
 extension to the interactive theorem prover Coq.
 Both works use recursively defined "shape" predicates
 that describe how the nodes and pointers
-form a bounded and circle free abstract tree.
+describe an abstract tree of finite height.
 However, we know of no verification that explicitly covers
 the implementation of functional B-trees.
 In addition to providing one, this work aims to show the benefits

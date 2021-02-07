@@ -116,7 +116,8 @@ we need to choose the last tree.
 
 The balancedness of a B-tree is defined recursively, making use
 of an intuitively defined height.\footnote{
-    The short hand "$`$" denotes the image of all elements of a set for a given function.
+    The operator $`$ denotes the image of all elements of a set for a given function.
+    In this case we map all subtrees to their respective height.
 }
 The height of all subtrees must be equal.
 However it is not completely intuitive
@@ -185,13 +186,14 @@ fun order$^r$ where
 
 We define the sortedness of a B-tree based on the \textit{inorder} of the tree,
 which is the catenation of all elements in the tree in in-order traversal.
+An example can be seen in \Cref{fig:inorder-basic}.
 The library function $concat$ on lists of lists
 is employed here to express catenation of
 the inorder of subtrees and the separators.
 This definition reads a bit inconveniently
 as the node internal list is first mapped and then concatenated.
 However since we make recursive use of the inorder-function
-inside the mapping expression, mapping the subtree list can not be externalized.
+inside the mapping expression, mapping the subtree list is inconvenient to externalize.
 We only later cover up this expression by using abbreviations.
 In the following, we will not distinguish between lists, 
 pairs or trees when talking about their inorder representation.
@@ -206,6 +208,14 @@ fun inorder :: 'a btree $\Rightarrow$ 'a list where
 abbreviation inorder_pair  $\equiv$ $\lambda$(sub,sep). inorder sub @ [sep]
 abbreviation inorder_list ts $\equiv$ concat (map inorder_pair ts)
 \end{lstlisting}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.3\linewidth]{figures/inorder-basic.pdf}
+    \caption[Example inorder of a B-Tree]
+    {The inorder view on the B-tree from figure \Cref{fig:btree-basic}.}
+    \label{fig:inorder-basic}
+\end{figure}
 
 That way we can express sortedness of the tree $t$ as a simple $\sorted (\inorder t)$,
 where $sorted$ is the property of being sorted strictly (with resprect to $<$)

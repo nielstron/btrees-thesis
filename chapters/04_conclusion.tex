@@ -9,17 +9,17 @@ of B-trees that is capable to handle membership and insertion queries.
 The implementation can be supplied with different
 intra-node search algorithms, of which a linear search based
 and a binary search based version are included.
+It makes efficient use of in-place updates
+and arrays of fixed size.
 Concrete code has been obtained in the languages Scala and SML,
 where the code generator may simply be extended to support other languages.
 We have proven the membership and insertion operations
 functionally correct within the Isabelle framework
 with the help of an abstract specification
 that is refined by the imperative code.
-The abstract specification fully implements
+The functional specification fully implements
 an abstract set interface on linearly ordered elements,
 also supporting deletion queries.
-The Isabelle proof documents can be found
-in the appendix \parencite{MuendlerAppendix21}.
 
 \section{Working in Isabelle}
 

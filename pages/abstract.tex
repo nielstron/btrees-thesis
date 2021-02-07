@@ -25,23 +25,28 @@ From the functional specification an imperative version is
 derived in Isabelle/HOL using refinement.
 The main difference to the functional specification is the efficient
 usage of a heap.
-The implementation is shown to again refine the functional program
-using the separation logic utilities for the Isabelle Refinement Framework due to
-Lammich \parencite{DBLP:journals/jar/Lammich19}.
-Further the implementation is kept general to support different
+The implementation is kept general to support different
 searching algorithms within nodes.
 We provide a final version that works with a linear search
 and one that supports binary search within the node.
+These imperative programs are shown to again refine the functional specifications
+using the separation logic utilities from the Isabelle Refinement Framework by
+Lammich \parencite{DBLP:journals/jar/Lammich19}.
+For this purpose, some additional imperative data structures
+and operations on variants of arrays are introduced.
 The result is a proof of the functional correctness
 of an imperative implementation of the B-Tree data structure
 that supports set membership and insertion queries
 and uses efficient binary search for intra-node navigation.
+The whole proof can be found in the appendix \parencite{MuendlerAppendix21}.
 
-From the specification, automatic executable code extraction to
+As with every specification in Imperative/HOL,
+automatic executable code extraction to
 several functional programming languages is supported.
 This approach compares well to other approaches at mechanized
-proofs of the B-Tree data structure and related specifications
+verifications of B-Tree implementations
 considering development time and effort in lines of code.
+
 
 %TODO: Abstract
 

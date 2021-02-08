@@ -5,14 +5,13 @@
 \chapter{Conclusions}\label{chapter:conclusion}
 
 In this work, we obtained an imperative implementation
-of B-trees that is capable to handle membership and insertion queries.
+of B-trees that is capable of handling membership and insertion queries.
 The implementation can be supplied with different
 intra-node search algorithms, of which a linear search based
 and a binary search based version are included.
 It makes efficient use of in-place updates
 and arrays of fixed size.
-Concrete code has been obtained in the languages Scala and SML,
-where the code generator may simply be extended to support other languages.
+A concrete implementation has been obtained in the languages Scala and SML.
 We have proven the membership and insertion operations
 functionally correct within the Isabelle framework
 with the help of an abstract specification
@@ -24,7 +23,7 @@ also supporting deletion queries.
 \section{Working in Isabelle}
 
 An overview on the resulting theory modules,
-their relationship to external modules and one another
+their relationship to external modules and to one another
 can be seen in \Cref{fig:thm-relationships}.
 The given graphic roughly resembles the actual file structure.
 It can be seen that in order to develop this project
@@ -78,7 +77,7 @@ but did not yield a complete proof are discarded.
 Showing what was applied
 would have been especially useful for the apply style proofs of the
 imperative implementation that was mainly comprised of simplification steps.
-Maybe the tools can be extended to return what lemmas lead to promising
+The tools could be extended to return what lemmas lead to promising
 simplifications of the the goal term to provide additional input to the user.
 
 Secondly \textbf{find\_theorems} is useless if the current state
@@ -247,7 +246,7 @@ For example, the imperative \textit{node$_i$} function
 requires temporarily allocating
 an array that has enough space to contain
 all elements that are supposed to be merged or split.
-Optimizing it would maybe give a function that takes
+Optimizing it could give a function that takes
 as an argument two arrays and redistributes elements between them,
 or an array and an element that is to be inserted.
 This naturally increases the required amount of additional,

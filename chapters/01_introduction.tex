@@ -8,10 +8,10 @@ An important topic in computer science is the study of the
 \textit{functional correctness} of an algorithm.
 It states whether an algorithm satisfies specified
 input/output behavior.
-Proving an algorithm correct
-becomes especially interesting when a) it can be applied
-to directly executable code and b) it is machine checked.
-Unfortunately with both desirable additions, the task becomes
+Proving correctness of an algorithm
+becomes especially interesting when it is be applied
+to directly executable code and even more so if it is machine checked.
+Unfortunately, with both, the task becomes
 significantly more complex.
 Even in an abstract specification, where topics such as
 memory management may be abstracted away,
@@ -22,13 +22,13 @@ low-level decisions about memory allocation or
 the eligibility of reusing variables need to be
 reasoned about.
 In this thesis we provide a computer assisted proof in the interactive
-theorem prover Isabelle/HOL for the functional
+theorem prover Isabelle/HOL \parencite{DBLP:books/sp/NipkowPW02} for the functional
 correctness of an imperative implementation of the B-tree data-structure
 and present how we dealt with the above mentioned issues.
 
 In \Cref{chapter:introduction}, we have a brief overview on related
-work and introduce common variations of the definition of B-trees.
-We choose to implement the definition that is most promising for our approach.
+work and introduce common variations of B-trees and
+the definition that is most promising for our approach.
 We first design a functional, abstract implementation.
 Together with a proof of its functional correctness,
 it is presented in \Cref{chapter:abs-set}.
@@ -40,7 +40,7 @@ Its functional correctness is shown by proving that it refines the functional sp
 Thus the proof obligation for the imperative implementation
 is reduced to a proof of equivalence between the output of the
 functional and the imperative implementation.
-This allows for low-key optimizations with regard to a naive translation.
+This allows for small optimizations with regard to a na\"ive translation.
 Finally, we present learned lessons, compare the results with related work and suggest potential future
 research in \Cref{chapter:conclusion}.
 
@@ -54,36 +54,36 @@ research in \Cref{chapter:conclusion}.
 
 Isabelle/HOL is an interactive theorem prover that allows
 to reason, among other things,
-in Higher Order Logic \parencite{DBLP:books/sp/NipkowPW02}.
+in Higher Order Logic.
 It is built in ML, which influences the syntax of functional
-programs written in it.
+programs written in it \parencite{DBLP:books/sp/NipkowPW02}.
 Isabelle source files are divided in so called theories,
 corresponding to code modules in common programming languages.
-A theory consists of the specification of datatypes,
+A theory consists of the specification of data types,
 typed definitions and theorems with proofs.
 
 \subsection{Notation and proofs in Isabelle}
 
-Functions, predicates and the like are all expressed in
+Functions, predicates, etc. are all expressed in
 a functional manner.
 The keyword \textbf{definition} denotes classical definitions.
 The term \textbf{abbreviation} is used to define simple shorthands for more complex expressions,
 similar to a macro.
 The word \textbf{fun} precedes recursively defined total functions.
-It supports definition by pattern matching and
-is only a valid definition if it incorporates a proof of termination.
+It is only a valid definition if it incorporates a proof of termination.
 Usually this proof is derived automatically by the system.
 If a termination can not be guaranteed for all inputs,
 a function may be defined via \textbf{partial\_function}.
-As circle free-ness of heap pointers cannot be guaranteed for all inputs
+As cycle freeness of heap pointers can not be guaranteed for all inputs
 on imperative programs, many imperative definitions are given
 as partial functions.
-Partial function definitions come at the inconvenience of no
-supported pattern matching \parencite{isabelleManual}.
+As a consequence from potential non-termination,
+we may only show partial correctness for these functions \parencite{DBLP:conf/itp/Krauss10}.
+However this is implied by the Hoare Logic that we will use to reason about imperative programs.
 
-Lemmas, theorems and the like can be expressed in a similar manner
-as they would be written in mathematical textbook.
-They begin with \textbf{lemma}, \textbf{theorem} or \textbf{corollary},
+Mathematical propositions can be expressed in a similar manner
+as they would be written in a mathematical textbook.
+They begin with the keyword \textbf{lemma}, \textbf{theorem} or \textbf{corollary},
 followed by an expression or predicate and a proof.
 Wherever possible and readable, we will try to reflect the actual
 syntax of the Isabelle system, however compromise in order to
@@ -92,23 +92,25 @@ close to conventional notation.
 To prove a theorem correct, the system basically provides two different
 proof styles.
 
-One option is to write structured proofs in the isar language.
-The user outlines a proof with intermediate goals
-and tells the system which proof methods to apply to
-resolve each step.
-This method is usually preferred as it is more readable and usually
-faster on the system side.
-All complex proofs in \Cref{chapter:abs-set} are hence written in this style.
+\begin{enumerate}
+    \item Structured proofs in the Isar language:
+    The user outlines a proof, supplying intermediate goals
+    and telling the system which proof method to apply to
+    resolve each step.
+    This style is usually preferred as it is more readable and usually
+    faster on the system side.
+    All complex proofs in \Cref{chapter:abs-set} are hence written in this style.
+    \item Apply style: the user tells the system which proof method
+    to apply to modify the current goal.
+    Examples are the application of a rule
+    or simplification using equivalences.
+    This is practical if the number of assumptions
+    is high or the goal is large and writing the full terms
+    out would be impractical.
+    Since this is the case for the proofs of the imperative programs,
+    almost all proofs in \Cref{chapter:imp-set} are written in this style.
+\end{enumerate}
 
-In the apply style, the user tells the system which proof method
-to apply to modify the current goal.
-Examples are the application of a rule
-or simplification using equivalences.
-This is practical if the number of assumptions
-is high or the goal is large and writing the full terms
-out would be impractical.
-Since this is the case for the proofs of the imperative programs,
-almost all proofs in \Cref{chapter:imp-set} are written in this style.
 
 The system provides a number of proof methods,
 based on different manipulation tools
@@ -123,19 +125,23 @@ a combination of logical reasoning and repeated simplification,
 but also allowing automatic case distinctions and destructive rule application.
 
 It is possible to specify functions, predicates
-and theorems with respect to some abstracted function or constant
-on which only certain assumptions are made,
-resulting in so-called \textbf{locales}.
-By providing functions or constants that satisfy
+and theorems with respect to some abstracted constants
+(which may also be functions).
+Inside the resulting \textbf{locale}, only certain assumptions,
+but no concrete definitions are known about the abstracted constant.
+By providing definitions that satisfy
 the assumptions, we may \textit{instantiate}
-the locale.
+the locale, potentially yielding computable results.
 We implement the set interface concretely by
 instantiating a set locale from the standard library.
+But also the definition of functional and imperative
+B-tree operations will be in locales that assume
+the existence of a node-navigating operation.
 
 \subsection{Examples and basics of the Isabelle language}
 
 Datatypes may be defined recursively.
-The following shows as an example the internal definition of the list datatype.\footnote{
+The following shows as an example the internal definition of the list data type.\footnote{
     The actual definition is worded slightly different but this is of no importance here.
 }
 
@@ -187,8 +193,20 @@ In B$^+$-trees, all data is stored in the leaves \parencite{DBLP:journals/csur/C
 Further the leaves are often implemented so as to contain pointers
 to the next leaf in order, allowing for efficient range queries.
 
-Node are generally thought to be implemented by
-containing a number of indices, corresponding data and children.
+Nodes are generally thought to be implemented by
+containing a number of indices, data corresponding to each index
+and a number of children.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/btree-basic-nopair.pdf}
+    \caption[A small example B-Tree]{A small balanced, sorted B-tree of order $2$ and
+    height $2$ containing $3$ nodes and $6$ elements.
+    In subsequent depictions, leafs will be depicted
+    by empty circles.}
+    \label{fig:btree-basic-nopair}
+\end{figure}
+
 
 \subsection{Definitions}
 \label{sec:data_structure_defs}
@@ -196,7 +214,8 @@ containing a number of indices, corresponding data and children.
 Every node contains a list of \textit{keys} (also \textit{separators}, \textit{index elements}), and \textit{subtrees} (\textit{children}),
 that represent further B-tree nodes.
 The separators and subtrees may be considered interleaved within a node,
-such that we can speak of a subtree left of a separator and a subtree right of a separator,
+such that we can speak of a subtree to the left of a separator and
+a subtree to the right of a separator,
 where for a separator at index $i$ we mean the subtree in the respective
 subtree list at index $i$ and $i+1$ respectively.
 Note that this already implies that the list of subtrees is one
@@ -214,8 +233,8 @@ It is only possible to maintain this property
 due to the flexible amount of subtrees in each node.
 
 \paragraph{Sortedness} Further the indices must be \textit{sorted} within the tree which means that all indices stored
-in the subtree left of a separator are smaller than the value of the separator
-and all indices on the right are greater.
+in the subtree to the left of a separator are smaller than the value of the separator
+and all indices in the subtree to the right are greater.
 Further all indices within a node should maintain a sorted order,
 that is the list of separators in a node must be sorted.
 
@@ -235,7 +254,7 @@ However this involves cumbersome \textit{real} arithmetic that unnecessarily com
 mechanized proofs.
 Sticking to the original definition is further supported by the fact that nodes are supposed
 to fill memory pages which are usually of even size (usually some power of 2).
-An even number of separators and trees plus one dangling last right tree maximizes
+An even number of separators and trees plus one dangling last tree maximizes
 the usage of such a page.
 
 The same ambiguity exists for the term \textit{Leaf} which we will define consistently with Knuth's definition \parencite{DBLP:books/lib/Knuth98a}
@@ -253,26 +272,16 @@ and no internal elements.
 For the root node this even leads to a contradictory state:
 It is required to contain at least 1 element or 2 subtrees.
 However as it should not have more than $2k+1 = 1$ elements,
-this constraint cannot be satisfied.
+this constraint can not be satisfied.
 Requiring positive $k$ is consistent with the definitions
 in the consulted literature \parencite{DBLP:journals/acta/BayerM72,DBLP:journals/csur/Comer79,DBLP:books/daglib/0023376}.
 
 % insert image of valid B-tree
 
-\begin{figure}
-    \centering
-    \includegraphics[width=0.5\linewidth]{figures/btree-basic-nopair.pdf}
-    \caption[A small example B-Tree]{A small balanced, sorted B-tree of order $2$ and
-    height $2$ containing $3$ nodes and $6$ elements.
-    In subsequent depictions, leafs will be depicted
-    by empty circles.}
-    \label{fig:btree-basic-nopair}
-\end{figure}
-
 \subsection{B-Tree operations}
 
 The B-tree is a dynamic data-structure and provides
-a number of operations to inspect or modify the stored data.
+operations to query and update stored data.
 Generally, the operations are defined recursively on the nodes.
 The correct subtree may be found by inspecting the separators stored
 in the currently visited node.
@@ -297,7 +306,7 @@ There is little variation on this algorithm so there is no need for comparison.
 % TODO move abstract discussion to introduction
 %-------------------------------------------------
 \paragraph{Insertion}\label{par:intro-ins}
-There is also much consensus in the literature on
+There is also general consensus in the literature on
 how to conduct insertion into a B-tree \parencite{DBLP:journals/csur/Comer79}.
 %TODO citations
 %TODO relationship to other implementations (are there more?)
@@ -327,16 +336,16 @@ to the left or right of the element to be removed.
 
 After deletion, the nodes may need rebalancing in order
 to ensure the order property.
-A node having less than $k$ elements is called to have \textit{underflow}.
-Opposing to the insertion function,
-the exact procedure to handle underflow varies strongly in the literature.
+A node having less than $k$ elements is said to have \textit{underflow}.
+The exact procedure to handle underflow varies strongly in the literature.
 Since only one element is removed from the node,
-the most intuitive remedy to underflow is to \textit{steal} or \textit{borrow} it
-from the left or right sibling \parencite{DBLP:books/daglib/0023376}.
-If the left or right sibling has more than $k$ elements,
+the most intuitive solution to underflow is to \textit{steal} or \textit{borrow} it
+from the sibling to the left or right \parencite{DBLP:books/daglib/0023376}.
+If either sibling has more than $k$ elements,
 one of the neighboring elements may be moved into the current node.
-Only in case that both siblings have left only $k$ elements,
+Only in the case that both siblings have only $k$ elements,
 a kind of reversal of the insertion split is conducted:
+
 One of the siblings and the node itself, together with the separating
 element of the parent node are merged and the result split again to form
 a new, bigger node of valid order.
@@ -346,13 +355,14 @@ as done by Fielding \parencite{Fielding80},
 the two cases can be treated identically.
 If a node has less than $k$ elements,
 merge it with one of its siblings.
-If the resulting catenated node has an overflow again,
+If the resulting node has an overflow again,
 it will be split in half, just as with insertion related overflows.
 According to Comer \parencite{DBLP:journals/csur/Comer79} this may even be
 more efficient than stealing single single keys from siblings.
-First of, the resulting node is less likely to underflow again.
-If it had stolen only one element, the probability for another underflow at the next
-deletion from this node is 1, higher than if several elements are copied over.
+Firstly, the resulting node is less likely to underflow again.
+If it had stolen only one element, another deletion from this node
+will certainly cause another overflow.
+This is not the case when several elements are copied over.
 Further, the node to merge with been completely read from memory at the point
 of stealing an element.
 Merging does therefore not incur additional memory accesses and
@@ -364,29 +374,37 @@ the cost of inter-memory copy of up to $k$ elements is negligible.
 
 B-trees are assumed to be stored on external memory,
 such that each node roughly matches a page in main memory.
-Due to the potentially large branching factor and the balancing,
-the number of required memory accesses for retrieving data stays small even for
-large amounts of data stored.
-This is due to the fact that the overall number of memory accesses is bounded by the depth
-of the tree, which again is logarithmic in the number of indices -
+In real situations, this implies that the number of elements
+that can be stored in each node, and hence also $k$, is huge, usually $\gg 1000$.
+The overall number of memory accesses for all tree operations
+is bounded by the depth of the tree,
+which again is logarithmic in the number of indices -
 where the base of the logarithm is closely proportional to the order $k$ of the tree.
+This is due to the large branching factor and the guaranteed balancing.
+Together, the data structure yields a very small number of required memory accesses
+for retrieving and inserting data stay,
+even if the tree stores large amounts of data.
 
-Further, by design, the storage usage of B-trees is at a minimum close to $50\%$,
+Furthermore, by design, the storage usage of B-trees is at a minimum close to $50\%$
+of the reserved memory,
 where the average usage is usually higher \parencite{DBLP:journals/acta/BayerM72}.
 This is achieved by ensuring that every node reserves the storage of $2k$ keys and separators.
 By definition, the nodes (except for the root) always contain
 at least $k$ elements, yielding a storage usage of close to $50\%$.
 
-B-trees lay the foundation to most modern relational database implementations.
-The above mentioned properties are key to the widespread popularity of B-trees
-in databases and are hence preserved in the given implementation.
+The above mentioned properties are key to the widespread popularity of B-trees.
+Usually the closely related structure of B$^+$-trees is used in applications,
+being especially popular for the implementation of databases.
+B-trees build the foundation to most modern relational database implementations \parencite{DBLP:journals/csur/Comer79}.
+We therefore made sure to represent the important aspects for the applicability
+of B-trees, little memory accesses and high storage usage, in our implementation.
 % TODO more
 
 \section{Related Work}
 
-All found related work considers B$^+$-trees
-rather than B-trees, however some parallels can be found.
-
+All the related work we have found considered B$^+$-trees
+rather than B-trees.
+However, some parallels can be observed.
 There exist two pen and paper proofs via the rigorous approach
 by Fielding \parencite{Fielding80} and Sexton \parencite{DBLP:journals/entcs/SextonT08}.
 Even though not machine checked, they shed light on techniques applied in this work.
@@ -414,35 +432,38 @@ and refine to an imperative implementation with pointers and arrays in \Cref{cha
 The code we obtain will be exported automatically to a functional language of choice.
 
 We reason about the validity of this refinement via separation logic,
-the same tool as employed by Sexton \parencite{DBLP:journals/entcs/SextonT08}.
-They show in their work that this tool allows to reason based on some kind of locality,
+the same tool that Sexton employed \parencite{DBLP:journals/entcs/SextonT08}.
+Their work shows that this tool allows to reason based on some kind of locality,
 in particular that operations on subtrees are really only affecting subtrees.
 We will make implicit use of this property in \Cref{chapter:imp-set}
 for proofs on our imperative implementation.
 
-The specification by Sexton is given as an abstract machine rules,
+The specification by Sexton is given as abstract machine rules,
 somewhat more abstract than pure code but operating on a stack
 much like we expect imperative programs to operate with pointers on a heap.
 We therefore categorize this as a direct verification of an imperative implementation.
 
-Among imperative implementations, two machine checked proofs exist too.
+Among imperative implementations, two machine checked proofs exist as well.
 In the work of Ernst \parencite{DBLP:journals/sosym/ErnstSR15},
 an imperative implementation is directly verified
 by combining interactive theorem proving 
 with shape analysis.
 The main recursive procedures are interactively verified in KIV.
 Data structure properties such as circle-freeness are then proven by shape-analysis.
-Another direct proof on an imperative specification 
+Another direct proof on an imperative implementation 
 was conducted by Malecha \parencite{DBLP:conf/popl/MalechaMSW10}, with the YNOT
 extension to the interactive theorem prover Coq.
-Both works use recursively defined "shape" predicates
-that describe how the nodes and pointers
-describe an abstract tree of finite height.
+Both works use recursively defined "shape predicates"
+that describe formally how the nodes and pointers
+represent an abstract tree of finite height.
+In the work of Malecha, these predicates are even specified functionally.
 However, we know of no verification that explicitly covers
-the implementation of functional B-trees.
+a complete specification of functional B-trees and operations on it.
+
 In addition to providing one, this work aims to show the benefits
-of taking this indirection for imperative implementations.
-That is that the analysis of invariants of an abstract shape may be spared
+of taking an indirection via a complete functional specification
+to derive proofs for an imperative implementation.
+Among others, these benefits are that the analysis of invariants of an abstract shape may be spared
 or at least significantly simplified when
 restricting the concrete pointer structures to be refinements
 of an abstract algebraic type.

@@ -9,12 +9,14 @@ behind its correct implementation of the set interface.
 However, the specification would not yield 
 efficiently executable code.
 % main difference: specify allocation of data
-The reason is that the abstract specification works with
-the persistent datatypes of nodes and lists.
+The reason is that the abstract specification utilizes
+the persistent data types node and list.
 This way, trivially, no data is unknowingly
 modified or corrupted,
-however this is at the cost of computational efficiency
-as changes require allocating memory for a completely new object.
+however this is at the cost of computational efficiency.
+A small change in a list or node
+requires allocating complete copies of all objects that have to be updated,
+recursively propagating through the whole data structure.
 
 In order to obtain an efficient implementation
 on ephemeral data structures common to imperative languages,
@@ -63,7 +65,7 @@ The basic assertions used in this work are the following:
 The last assertion is key to enabling reasoning about local
 parts of the heap.
 With the tools provided by separation logic,
-we well prove our imperative implementations correct
+we will prove our imperative implementations functionally correct
 by showing that they refine the abstract implementation in \Cref{chapter:abs-set}.
 
 In general, refinement relates a concrete data structure
@@ -113,6 +115,8 @@ satisfy the requirements of the set interface.
 Instead we merely need to show that the imperative code
 acts on a concretized version of the B-trees
 the same way as the abstract operations on the abstract version.
+The abstract idea of this approach is discussed in more detail
+in the work of Lammich \parencite{DBLP:journals/jar/Lammich19}
 
 % TODO note what to introduce here
 % abstract idea: implementation that has same effect on concrete ds
@@ -124,7 +128,7 @@ the same way as the abstract operations on the abstract version.
 
 In the imperative collection framework by Lammich
 \parencite{DBLP:journals/jar/Lammich19},
-the abstract datatype list is usually
+the abstract data type list is usually
 refined to a dynamic array like data structure.
 It comprises an array and a natural number,
 where the latter denotes the current number of elements
@@ -168,7 +172,7 @@ definition is_pfa :: nat $\Rightarrow$ 'a list $\Rightarrow$ 'a pfarray where
 
 where $c$ is the $capacity$ of the array,
 the actually allocated size of the array on the heap.
-All references to lists in the abstract datatype $btree$
+All references to lists in the abstract data type $btree$
 will in the imperative version be refined to partially filled arrays.
 
 However one should note that
@@ -246,7 +250,7 @@ of overlapping ranges no elements are overwritten before being copied.
 
 By adding a function that copies elements in reverse order
 and conditionally calling either copy function,
-loss-free in-place copying was achieved.
+loss-free in-place copying is achieved.
 The resulting function is conveniently agnostic to the direction
 of the copying, just as the respective implementations
 in target languages for code extraction.\footnote{
@@ -310,15 +314,14 @@ about the content that is written beyond given $k$.
     \end{center}
 \end{lemma}
 
-With these operations and suitable Hoare-Triples about them,
+With these operations and suitable Hoare-Triples on them,
 we have all the tools required to refine the abstract set implementation.
-The only missing piece is an imperative split function.
 % TODO more about sblit?
 
 \section{Set-Operations}
 
-Having covered the refinement for the list datatype,
-the B-tree datatype itself can be refined.
+Having covered the refinement for the list data type,
+the B-tree data type itself can be refined.
 Rather than actually storing nodes within lists,
 the B-tree nodes are supposed to be stored in the heap,
 and the node list will only contain pointers to the corresponding nodes.
@@ -349,15 +352,14 @@ The precise refinement assertion can be seen in \Cref{lst:imp-btree-refine}.
 \begin{lstlisting}[mathescape=true, language=Isabelle, caption={The refinement assertion for B-trees},
     label={lst:imp-btree-refine}]
 fun btree_assn :: nat $\Rightarrow$ 'a::heap btree $\Rightarrow$ 'a btnode ref option $\Rightarrow$ assn where
-  btree_assn k Leaf None = emp |
-  btree_assn k (Node ts t) (Some a) = 
- ($\exists_A$ tsi ti tsi'.
-      a $\mapsto_r$ Btnode tsi ti
-    * btree_assn k t ti
-    * is_pfa (2*k) tsi' tsi
-    * list_assn ((btree_assn k) $\times_a$ id_assn) ts tsi'
-    ) |
-  btree_assn _ _ _ = false
+    btree_assn k Leaf None = emp |
+    btree_assn k (Node ts t) (Some a) = ($\exists_A$ tsi ti tsi'.
+        a $\mapsto_r$ Btnode tsi ti
+        * btree_assn k t ti
+        * is_pfa (2*k) tsi' tsi
+        * list_assn ((btree_assn k) $\times_a$ id_assn) ts tsi'
+        ) |
+    btree_assn _ _ _ = false
 
 abbreviation blist_assn k $\equiv$ list_assn ((btree_assn k) $\times_a$ id_assn)
 
@@ -499,7 +501,7 @@ For the two cases of loop termination,
 either $i = n$, or $i < n$, we find that
 the abstract function will return the exact same split.
 
-This is great to know since the previous lemma
+This is fortunate since the previous lemma
 follows directly from the computation and is closely related
 to the loop invariant.
 This will simplify proofs for alternative imperative split functions.
@@ -522,7 +524,7 @@ it narrows the range in which the desired element may lie
 to a window that it bisected in every iteration.
 This bisection is implemented by inspecting the middle element of the window.
 If the desired element was not found, the algorithm
-recurses into either the left or right remaining subwindow.
+recurses into either the remaining subwindow to the left or right.
 In the final iteration,
 the window has narrowed down to a single element,
 containing the correct separator and subtree.
@@ -554,11 +556,6 @@ definition bin_split :: ('a::heap $\times$ 'b::{heap,linorder}) pfarray $\Righta
 Since pairs as list elements (i.e. pairs of trees and separators)
 were expected to add another layer of complexity,
 a binary split algorithm on normal lists has been derived first.
-The code required several small corrections
-until it could be proven correct.
-This supports the general call
-for verified programs and hints at the fragility
-of efficient unverified programs.
 The split function for lists of pairs was then defined
 and could be tackled using the same loop invariant.
 Note that the binary split works on two indices
@@ -585,7 +582,7 @@ Overall obtaining the same Hoare Triple
 as for the linear split required only
 this slightly more complex loop invariant
 and invocation of a number of algebraic lemmas.
-This was somewhat of a surprise, since the functional
+This came to us somewhat of a surprise, since the functional
 version of a binary split is much harder to
 specify and analyse than a functional linear split.
 The additional requirement for the binary split is
@@ -625,7 +622,7 @@ stored explicitly before use.
 Other than that, the definition of the imperative isin in \Cref{lst:imp-isin-fun}
 function should bare no surprises.
 Note that it makes use of the function \textit{imp\_split}
-which is an arbitrary split function that fulfils the Hoare Triple
+which is an arbitrary split function that fulfills the Hoare Triple
 of \Cref{lem:imp-bin-split-ht}.
 
 \begin{figure}
@@ -633,29 +630,28 @@ of \Cref{lem:imp-bin-split-ht}.
     caption={The imperative isin function}]
 partial_function (heap) isin :: 'a btnode ref option $\Rightarrow$ 'a $\Rightarrow$  bool Heap
   where
-    isin p x =
-  (case p of
-     None $\Rightarrow$ return False |
-     (Some a) $\Rightarrow$ do {
-       node $\leftarrow$ !a;
-       i $\leftarrow$ imp_split (kvs node) x;
-       tsl $\leftarrow$ pfa_length (kvs node);
-       if i < tsl then do {
-         s $\leftarrow$ pfa_get (kvs node) i;
-         let (sub,sep) = s in
-         if x = sep then
-           return True
-         else
-           isin sub x
-       } else
-           isin (last node) x
+    isin p x = (case p of
+        None $\Rightarrow$ return False |
+        (Some a) $\Rightarrow$ do {
+        node $\leftarrow$ !a;
+        i $\leftarrow$ imp_split (kvs node) x;
+        tsl $\leftarrow$ pfa_length (kvs node);
+        if i < tsl then do {
+            s $\leftarrow$ pfa_get (kvs node) i;
+            let (sub,sep) = s in
+            if x = sep then
+            return True
+        else
+            isin sub x
+        } else
+            isin (last node) x
     }
 )
 \end{lstlisting}
 \end{figure}
 
-The convention for variables that refer to refined datatypes
-is that they have the same name as the abstract datatype,
+The convention for variables that refer to refined data types
+is that they have the same name as the abstract data type,
 with the postfix \textit{i}.
 For example below, the abstract \textit{btree} is referred to by $t$,
 however the refined \textit{btnode ref option} is called $ti$.
@@ -694,27 +690,25 @@ especially after application of the inductive hypothesis.
     caption={The imperative node$_i$ function}]
 definition node$_i$ 
     :: nat $\Rightarrow$ ('a btnode ref option $\times$ 'a) pfarray $\Rightarrow$ 'a btnode ref option $\Rightarrow$ 'a btupi Heap
-  where node$_i$ k a ti $\equiv$ do {
-      n $\leftarrow$ pfa_length a;
-      if n $\le$ 2*k then do {
-        a' $\leftarrow$ pfa_shrink_cap (2*k) a;
-        l $\leftarrow$ alloc (Btnode a' ti);
-        return (T$_i$ (Some l))
-      }
-      else do {
-        b $\leftarrow$ (pfa_empty (2*k)
-            :: ('a btnode ref option $\times$ 'a) pfarray Heap);
-        i $\leftarrow$ split_half a;
-        m $\leftarrow$ pfa_get a i;
-        b' $\leftarrow$ pfa_drop a (i+1) b;
-        a' $\leftarrow$ pfa_shrink i a; 
-        a'' $\leftarrow$ pfa_shrink_cap (2*k) a';
-        let (sub,sep) = m in do {
-          l $\leftarrow$ alloc (Btnode a'' sub);
-          r $\leftarrow$ alloc (Btnode b' ti);
-          return (Up$_i$ (Some l) sep (Some r))
+    where node$_i$ k a ti $\equiv$ do {
+        n $\leftarrow$ pfa_length a;
+        if n $\le$ 2*k then do {
+            a' $\leftarrow$ pfa_shrink_cap (2*k) a;
+            l $\leftarrow$ alloc (Btnode a' ti);
+            return (T$_i$ (Some l))
+        } else do {
+            b $\leftarrow$ (pfa_empty (2*k) :: ('a btnode ref option $\times$ 'a) pfarray Heap);
+            i $\leftarrow$ split_half a;
+            m $\leftarrow$ pfa_get a i;
+            b' $\leftarrow$ pfa_drop a (i+1) b;
+            a' $\leftarrow$ pfa_shrink i a; 
+            a'' $\leftarrow$ pfa_shrink_cap (2*k) a';
+            let (sub,sep) = m in do {
+                l $\leftarrow$ alloc (Btnode a'' sub);
+                r $\leftarrow$ alloc (Btnode b' ti);
+                return (Up$_i$ (Some l) sep (Some r))
+            }
         }
-      }
     }
 
 \end{lstlisting}
@@ -725,8 +719,7 @@ definition node$_i$
     caption={Excerpt of the imperative insert function}]
 
 partial_function (heap) ins :: nat $\Rightarrow$ 'a $\Rightarrow$ 'a btnode ref option $\Rightarrow$ 'a btupi Heap 
-    where 
-      ins k x apo = (case apo of 
+    where ins k x apo = (case apo of 
     None $\Rightarrow$ return (Up$_i$ None x None) | 
     (Some ap) $\Rightarrow$ do { a $\leftarrow$ !ap; i $\leftarrow$ imp_split (kvs a) x; tsl $\leftarrow$ pfa_length (kvs a); 
       if i < tsl then do { 
@@ -750,16 +743,16 @@ partial_function (heap) ins :: nat $\Rightarrow$ 'a $\Rightarrow$ 'a btnode ref 
         } } } } else $\dots$
 
 definition insert :: nat $\Rightarrow$ ('a::{heap,default,linorder}) $\Rightarrow$ 'a btnode ref option $\Rightarrow$ 'a btnode ref option Heap
- where insert $\equiv$ $\lambda$ k x ti. do {
-  ti' $\leftarrow$ ins k x ti;
-  case ti' of
-     T$_i$ sub $\Rightarrow$ return sub |
-     Up$_i$ l a r $\Rightarrow$ do {
-        ts' $\leftarrow$ pfa_init (2*k) (l,a) 1;
-        t' $\leftarrow$ alloc (Btnode ts' r);
-        return (Some t')
-      }
-}
+    where insert $\equiv$ $\lambda$ k x ti. do {
+    ti' $\leftarrow$ ins k x ti;
+    case ti' of
+        T$_i$ sub $\Rightarrow$ return sub |
+        Up$_i$ l a r $\Rightarrow$ do {
+            ts' $\leftarrow$ pfa_init (2*k) (l,a) 1;
+            t' $\leftarrow$ alloc (Btnode ts' r);
+            return (Some t')
+        }
+    }
 
 \end{lstlisting}
 \end{figure}
@@ -838,10 +831,11 @@ a positive $k$ is required such that no contradiction appears.
 
 Until now we have only shown that the concrete
 implementations refine the abstract interpretations.
-What does this bring concretely?
-Do we have to finally resort to an informal argument to show that the result
+What does this mean concretely?
+Do we have to resort to an informal argument to show that the result
 satisfies the invariants and the set interface?
 This is not the case.
+
 The final theorem that proves functional correctness of the imperative
 implementations with respect to the set interface follows.
 
@@ -857,7 +851,7 @@ And indeed, this can be derived automatically with a single command invocation,
 unfolding \Cref{def:btree-def} and using \Cref{thm:imp-ins-rule}, \Cref{thm:ins-set} and \Cref{thm:ins-invar}.\footnote{
     Technically we also need the fact that ins$_{list}$ preserves sortedness.
     This was already proven by Nipkow \parencite{DBLP:conf/itp/Nipkow16}
-    and is considered trivial here.
+    and is not considered here.
 }
 
 
@@ -865,11 +859,11 @@ unfolding \Cref{def:btree-def} and using \Cref{thm:imp-ins-rule}, \Cref{thm:ins-
 
 An imperative version of the deletion operation has been specified.
 It required some additional operations on partially filled arrays but
-posed no foundational challenges.
+posed no fundamental challenges.
 Due to its length it is not shown here but may be looked up in the
 actual proof documents.
 
-However the proof of its refining property was not conducted.
+However, the proof of its refining property was not conducted.
 We assume that this proof would be structured similar to
 the previous proofs.
 The only benefit would be exploring usage of the new

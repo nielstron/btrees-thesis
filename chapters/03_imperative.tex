@@ -24,8 +24,8 @@ we specify imperative code and show that
 it refines the abstract specification.
 The imperative code can then be translated to
 the languages Scala \parencite{OderskyScala} and SML \parencite{DBLP:books/daglib/0069232}
-using the code generation
-facilities in Isabelle/HOL \parencite{Haftmann20codegeneration}.
+using the code generator
+for Isabelle/HOL \parencite{Haftmann07acode}.
 However, code extraction is not limited
 to these specific languages
 since the code generator is extensible.
@@ -328,10 +328,11 @@ and the node list will only contain pointers to the corresponding nodes.
 Pointers are represented by the type \textit{ref} in Imperative/HOL.
 Leaf nodes contain no information and consequently don't have to be stored
 on the heap, therefore we refine them using null pointers.
-Since the Imperative Refinement Framework does not support null pointers,
+Since Imperative/HOL does not support null pointers \parencite{DBLP:conf/tphol/BulwahnKHEM08},
+and we do not want to explicitly store \textit{Leaf} objects on the heap,
 B-tree nodes are refined by heap reference \textit{options} instead.
-None represents leafs or empty trees.
-Valid heap references point to refinements of internal nodes.
+Thus \textit{None} represents leafs or empty trees,
+while \textit{Some} heap reference points to refinements of internal nodes.
 
 \begin{lstlisting}[mathescape=true, language=Isabelle]
 datatype 'a btnode =

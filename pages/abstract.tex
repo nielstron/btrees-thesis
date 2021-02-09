@@ -1,25 +1,23 @@
 % !TeX root = ../main.tex
 \chapter{\abstractname}
 
-In this thesis, we prove the functional correctness
-of an imperative implementation of the classical B-tree data structure \parencite{DBLP:journals/acta/BayerM72},
-supporting set membership and insertion queries
-and using efficient binary search for intra-node navigation
-in the interactive theorem prover Isabelle/HOL \parencite{DBLP:books/sp/NipkowPW02}.
-This is done by first specifying the structure abstractly 
+In this thesis, we use the interactive theorem prover Isabelle/HOL \parencite{DBLP:books/sp/NipkowPW02}
+to verify an imperative implementation of the classical B-tree data structure \parencite{DBLP:journals/acta/BayerM72}.
+The implementation supports set membership and insertion queries
+with efficient binary search for intra-node navigation.
+This is accomplished by first specifying the structure abstractly 
 in the functional modeling language HOL and proving functional correctness.
 Using manual refinement, we derive an imperative implementation
-in Imperative/HOL. The correctness of this refinement is shown using
+in Imperative/HOL \parencite{DBLP:conf/tphol/BulwahnKHEM08}.
+We show the validity of this refinement using
 the separation logic utilities from the
-Isabelle Refinement Framework by Lammich \parencite{DBLP:journals/jar/Lammich19}. 
+Isabelle Refinement Framework \parencite{DBLP:journals/jar/Lammich19}. 
 The code can be exported to the programming languages SML and Scala.
-The runtime is of all operations examined indirectly via a
-proof of the logarithmic relationship between height and number of nodes.
-Our approach to verify an imperative implementation
-via the detour of a functional specification
-compares well to other approaches at mechanized
-verifications of B-tree implementations,
-considering development time and effort in lines of code.
+We examine the runtime of all operations indirectly by reproducing results
+of the logarithmic relationship between height and the number of nodes.
+Considering development time and lines of code,
+our approach compares well to other approaches at mechanized
+verifications of the B-tree data structure.
 
 
 %TODO: Abstract

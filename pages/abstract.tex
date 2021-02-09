@@ -1,54 +1,25 @@
 % !TeX root = ../main.tex
 \chapter{\abstractname}
 
-The B-tree data structure is a classical data structure
-that builds the foundation of many modern database systems.
-Since its first definition by Bayer \parencite{DBLP:journals/acta/BayerM72},
-a plethora of variations of the data structure and operations on it have been developed.
-We examine the original definition and modern alternative implementations,
-with special focus on the deletion operation, which differs strongly among the literature.
-We derive our own definitions, combining the original paper
-with approaches that have resulted in verified implementations previously.
-Based on the definition, we specify the B-tree data structure in the
-functional modeling language HOL.
-The specification is complemented by a proof of its correctness
-with respect to refining a set of linearly ordered elements.
-In addition, we provide a proof of the logarithmic relationship between height and number of nodes,
-reproducing results of Bayer \parencite{DBLP:journals/acta/BayerM72}.
-This verifies claims on the efficiency of
-operations on the tree.
-All proofs are machine-checked in the Isabelle/HOL framework,
-an interactive automated theorem prover \parencite{DBLP:books/sp/NipkowK14}.
-Within the framework,
-the functional specification already yields automatic extraction of executable,
-but inefficient code.
-
-Therefore we derive an imperative implementation of the functional specification
-in Imperative/HOL, using refinement.
-The main difference is the efficient usage of a heap and arrays.
-For this purpose, we introduce static arrays with variable size
-and sophisticated copy and move operations on arrays.
-The implementation is defined with respect to some abstract imperative
-operation for node-internal search.
-We provide one such function that implements a linear search,
-and one that conducts binary search within the node.
-These imperative programs are shown to again refine the functional specifications
-using the separation logic utilities from the Isabelle Refinement Framework by
-Lammich \parencite{DBLP:journals/jar/Lammich19}.
-This process results in a proof of the functional correctness
-of an imperative implementation of the B-tree data structure.
-The implementation supports set membership and insertion queries
-and uses efficient binary search for intra-node navigation.
-As with every specification in Imperative/HOL,
-automatic executable code extraction to
-several functional programming languages is supported.
-
+In this thesis, we prove the functional correctness
+of an imperative implementation of the classical B-tree data structure \parencite{DBLP:journals/acta/BayerM72},
+supporting set membership and insertion queries
+and using efficient binary search for intra-node navigation
+in the interactive theorem prover Isabelle/HOL \parencite{DBLP:books/sp/NipkowPW02}.
+This is done by first specifying the structure abstractly 
+in the functional modeling language HOL and proving functional correctness.
+Using manual refinement, we derive an imperative implementation
+in Imperative/HOL. The correctness of this refinement is shown using
+the separation logic utilities from the
+Isabelle Refinement Framework by Lammich \parencite{DBLP:journals/jar/Lammich19}. 
+The code can be exported to the programming languages SML and Scala.
+The runtime is of all operations examined indirectly via a
+proof of the logarithmic relationship between height and number of nodes.
 Our approach to verify an imperative implementation
 via the detour of a functional specification
 compares well to other approaches at mechanized
-verifications of B-tree implementations
+verifications of B-tree implementations,
 considering development time and effort in lines of code.
-All proofs, specifications and programs can be found in the appendix \parencite{MuendlerAppendix21}.
 
 
 %TODO: Abstract

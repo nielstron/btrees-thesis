@@ -1074,13 +1074,17 @@ fun delete where delete k x t = reduce_root (del k x t)
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.48\linewidth]{figures/btree-basic-ins9-ins1.pdf}
+    \includegraphics[width=0.54\linewidth]{figures/btree-basic-ins9-ins1.pdf}\\
     \vspace*{1cm}
     \includegraphics[width=0.48\linewidth]{figures/btree-basic-ins9-ins1-del10.pdf}\\
     \vspace*{1cm}
     \includegraphics[width=0.48\linewidth]{figures/btree-basic-ins9-ins1-del10-del3.pdf}
-    \caption[An example B-Tree after two deletion operations]{The tree from \Cref{fig:btree-basic-ins} after 
-    successive deletion of $10$ (top) and $3$ (bottom).
+    \caption[An example B-Tree after two deletion operations]{The tree from \Cref{fig:btree-basic-ins} (top) after 
+    successive deletion of $10$ (middle) and $3$ (bottom).
+    For the first deletion, the value 10 and is swapped with value 9 before it is removed from the tree.
+    The middle subtree is then in an underflow, resulting in a merge with the right subtree and the new separator 9.
+    During the second deletion, an underflow is caused in the left subtree,
+    resulting in a merge with the separator 5 and the middle subtree and a subsequent split.
     Note how the final result differs from approaches that would only steal single elements
     from neighbors to handle underflow.}
     \label{fig:btree-basic-del}

@@ -1,0 +1,8 @@
+In dieser Arbeit wird mithilfe des interaktiven Theorembeweisers Isabelle/HOL eine imperative Version der klassischen B-Baum Datenstruktur verifiziert.
+Die Implementierung unterstützt Element- und Einfügeoperationen mit effizienter binärerer Suche für knoteninterne Navigation.
+Das Ergebnis wurde erzielt, indem die Struktur zuerst abstrakt in der Modellierungssprache HOL spezifiziert wurde, in der funktionale Korrektheit gezeigt werden konnte.
+Mithilfe von Verfeinerung wurde davon eine imperative Implementierung in Imperative/HOL abgeleitet.
+Mithilfe den Werkzeugen für Separationslogik des Isabelle Verfeinerungs Frameworks zeigen wir, dass die Verfeinerung gültig ist.
+Der Programmcode kann in die Sprachen SML und Scala exportiert werden.
+Wir untersuche zudem indirekt die Laufzeit der Operationen, indem wir klassische Ergebnisse über die logarithmische Beziehung zwischen Höhe und Anzahl Knoten reproduzieren.
+In Hinsicht auf Entwicklungszeit und Zeilen Programmcode liefert unser Ansatz gute Ergebnisse im Vergleich zu anderen Arbeiten zur maschinellen Verifikationen der B-Baum Datenstruktur. 

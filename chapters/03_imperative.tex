@@ -412,9 +412,10 @@ From this, we characterize the desired imperative
 split function \textit{imp\_split} by its Hoare-Triple.
 
 \begin{align*}
-    \langle & \pfarraycap c\ tsi\ a * \blistassn k\ ts\ tsi *  true \rangle \\
-            & \impsplit a \\
-\langle\lambda i. & \pfarraycap c\ tsi\ a * \blistassn k\ ts\ tsi * \uparrow(\splitrelation ts\ (\splitfun ts p)\ i)\rangle_t
+    \langle & \pfarraycap c\ xs\ (a,n) \rangle \\
+            & \impsplit\ (a,n)\ p \\
+\langle\lambda i. & \pfarraycap c\ xs\ (a,n)\\
+& * \uparrow(\splitrelation xs\ (\splitfun xs\ p)\ i)\rangle_t
 \end{align*}
 
 Just as with the abstract implementation,

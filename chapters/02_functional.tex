@@ -413,7 +413,7 @@ operations:
     \item set :: 'a t $\Rightarrow$ 'a set
     \item inv :: 'a t $\Rightarrow$ bool
     \item empty :: 'a t \textup{\textbf{where}} set empty = $\emptyset$
-    \item isin :: 'a t $\Rightarrow$ 'a $\Rightarrow$ bool \textup{\textbf{where}} inv t $\Longrightarrow$ isin x t = x $\in$ t
+    \item isin :: 'a t $\Rightarrow$ 'a $\Rightarrow$ bool \textup{\textbf{where}} inv t $\Longrightarrow$ isin x t = x $\in$ set t
     \item insert :: 'a $\Rightarrow$ 'a t $\Rightarrow$ 'a t \textup{\textbf{where}} inv t $\Longrightarrow$ set (insert t x) = set t $\cup$ {x}
     \item delete :: 'a $\Rightarrow$ 'a t $\Rightarrow$ 'a t \textup{\textbf{where}} inv t $\Longrightarrow$ set (delete t x) = set t $\backslash$ {x}
 \end{itemize}
